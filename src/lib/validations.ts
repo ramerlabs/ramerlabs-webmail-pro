@@ -52,7 +52,7 @@ export const fetchMailSchema = z.object({
     .enum(["INBOX", "Sent", "Drafts", "Trash", "Junk", "Archive"])
     .optional()
     .default("INBOX"),
-  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   search: z.string().max(200).optional(),
 });
 

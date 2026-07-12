@@ -143,15 +143,18 @@ export function MailDashboard({ email }: MailDashboardProps) {
   }, []);
 
   const loadMessages = useCallback(
-    async (opts?: { folder?: MailFolder; search?: string }) => {
+    async (opts?: { folder?: MailFolder; search?: string; silent?: boolean }) => {
       const f = opts?.folder ?? folder;
       const q = opts?.search ?? search;
-      setLoadingList(true);
-      setListError(null);
+      const silent = opts?.silent ?? false;
+      if (!silent) {
+        setLoadingList(true);
+        setListError(null);
+      }
       try {
         const params = new URLSearchParams({
           folder: f,
-          limit: "20",
+          limit: "50",
         });
         if (q.trim()) params.set("search", q.trim());
 
@@ -160,16 +163,20 @@ export function MailDashboard({ email }: MailDashboardProps) {
         });
         const data = await res.json();
         if (!res.ok) {
-          setListError(data.error || "Failed to load messages");
-          setMessages([]);
+          if (!silent) {
+            setListError(data.error || "Failed to load messages");
+          }
+          // Keep the previous list on error so a slow/failed refresh doesn't blank the inbox
           return;
         }
         setMessages(data.messages || []);
+        if (!silent) setListError(null);
       } catch {
-        setListError("Network error loading mail");
-        setMessages([]);
+        if (!silent) {
+          setListError("Network error loading mail");
+        }
       } finally {
-        setLoadingList(false);
+        if (!silent) setLoadingList(false);
       }
     },
     [folder, search],
@@ -183,6 +190,15 @@ export function MailDashboard({ email }: MailDashboardProps) {
     setMode("empty");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [folder]);
+
+  // Auto-refresh so new cPanel mail appears without a manual click
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      void loadMessages({ silent: true });
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, [loadMessages]);
 
   const visibleMessages = useMemo(() => {
     if (filter === "unread") return messages.filter((m) => !m.seen);

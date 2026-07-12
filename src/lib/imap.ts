@@ -17,6 +17,10 @@ function createClient(email: string, password: string) {
     secure: cfg.secure,
     auth: { user: email, pass: password },
     logger: false,
+    // Fail fast instead of hanging the inbox UI for up to ~90s
+    connectionTimeout: 15_000,
+    greetingTimeout: 12_000,
+    socketTimeout: 60_000,
   });
 }
 
@@ -304,12 +308,6 @@ function decodeAddress(
   };
 }
 
-function snippetFromSource(source?: Buffer): string {
-  if (!source) return "";
-  const { text, html } = parseMimeBody(source);
-  return extractSnippet(text || html || "");
-}
-
 function headerValue(headers: string, name: string): string {
   const re = new RegExp(`^${name}:\\s*([^\\r\\n]*(?:\\r?\\n[ \\t][^\\r\\n]*)*)`, "im");
   const match = headers.match(re);
@@ -451,7 +449,7 @@ export async function fetchLatestEmails(
     search?: string;
   } = {},
 ): Promise<MailListItem[]> {
-  const { folder = "INBOX", limit = 20, search } = options;
+  const { folder = "INBOX", limit = 50, search } = options;
 
   return withClient(email, password, async (client) => {
     await openBestMailbox(client, folder);
@@ -461,17 +459,20 @@ export async function fetchLatestEmails(
     if (exists === 0 && !search?.trim()) return [];
 
     let rangeOrUids: string | number[];
+    let fetchByUid = false;
 
     if (search?.trim()) {
       const query = search.trim();
+      // Subject/from only — BODY search scans the whole mailbox and is very slow on cPanel.
       const found = await client.search(
         {
-          or: [{ subject: query }, { from: query }, { body: query }],
+          or: [{ subject: query }, { from: query }],
         },
         { uid: true },
       );
       if (!found || found.length === 0) return [];
-      rangeOrUids = found.slice(-limit).reverse();
+      rangeOrUids = found.slice(-limit);
+      fetchByUid = true;
     } else {
       const start = Math.max(1, exists - limit + 1);
       rangeOrUids = `${start}:${exists}`;
@@ -479,31 +480,35 @@ export async function fetchLatestEmails(
 
     const items: MailListItem[] = [];
 
-    for await (const msg of client.fetch(rangeOrUids, {
-      uid: true,
-      flags: true,
-      envelope: true,
-      source: { start: 0, maxLength: 4096 },
-    })) {
-    const from = decodeAddress(msg.envelope?.from);
-    const to = decodeAddress(msg.envelope?.to);
-    const cc = decodeAddress(msg.envelope?.cc);
-    items.push({
-      uid: msg.uid,
-      seq: msg.seq,
-      subject: msg.envelope?.subject || "(no subject)",
-      from: from.name,
-      fromEmail: from.email,
-      to: to.name,
-      toEmail: to.email,
-      cc: cc.email || undefined,
-      date: msg.envelope?.date
-        ? new Date(msg.envelope.date).toISOString()
-        : new Date().toISOString(),
-      snippet: snippetFromSource(msg.source),
-      seen: msg.flags?.has("\\Seen") ?? false,
-      flagged: msg.flags?.has("\\Flagged") ?? false,
-    });
+    // Envelope + flags only — downloading MIME for every row made inbox feel stuck.
+    for await (const msg of client.fetch(
+      rangeOrUids,
+      {
+        uid: true,
+        flags: true,
+        envelope: true,
+      },
+      fetchByUid ? { uid: true } : undefined,
+    )) {
+      const from = decodeAddress(msg.envelope?.from);
+      const to = decodeAddress(msg.envelope?.to);
+      const cc = decodeAddress(msg.envelope?.cc);
+      items.push({
+        uid: msg.uid,
+        seq: msg.seq,
+        subject: msg.envelope?.subject || "(no subject)",
+        from: from.name,
+        fromEmail: from.email,
+        to: to.name,
+        toEmail: to.email,
+        cc: cc.email || undefined,
+        date: msg.envelope?.date
+          ? new Date(msg.envelope.date).toISOString()
+          : new Date().toISOString(),
+        snippet: "",
+        seen: msg.flags?.has("\\Seen") ?? false,
+        flagged: msg.flags?.has("\\Flagged") ?? false,
+      });
     }
 
     items.sort(
