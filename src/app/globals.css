@@ -534,7 +534,7 @@ body {
 }
 
 .landing-hero-visual {
-  margin: 0 -1.25rem;
+  margin: 1.25rem -1.25rem 0;
   opacity: 0;
   transform: translateY(18px);
   transition: opacity 0.7s ease 0.12s, transform 0.7s ease 0.12s;
@@ -545,14 +545,159 @@ body {
   transform: none;
 }
 
-.landing-hero-image {
+.landing-preview {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  min-height: 22rem;
+  border-block: 1px solid rgba(228, 224, 216, 0.95);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(243, 241, 236, 0.92));
+  color: var(--foreground);
+}
+
+.landing-preview-rail {
+  display: none;
+  padding: 1.1rem 0.85rem;
+  border-right: 1px solid rgba(228, 224, 216, 0.95);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.landing-preview-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.25rem;
+}
+
+.landing-preview-mark {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.45rem;
+  background: var(--accent);
+}
+
+.landing-preview-brand strong {
   display: block;
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  object-position: top center;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 0.85rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.landing-preview-brand em {
+  display: block;
+  font-style: normal;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.landing-preview-rail nav {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.landing-preview-rail nav span {
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.78rem;
+  color: var(--muted-strong);
+}
+
+.landing-preview-rail nav span.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.landing-preview-list {
+  min-width: 0;
+  border-right: 1px solid rgba(228, 224, 216, 0.7);
+}
+
+.landing-preview-list-head {
+  padding: 0.85rem 1rem 0.55rem;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.landing-preview-list article {
+  padding: 0.7rem 1rem;
+  border-top: 1px solid rgba(228, 224, 216, 0.75);
+}
+
+.landing-preview-list article.is-unread {
+  background: rgba(15, 110, 86, 0.04);
+}
+
+.landing-preview-list article header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.15rem;
+}
+
+.landing-preview-list article strong {
+  font-size: 0.82rem;
+}
+
+.landing-preview-list article time {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.landing-preview-subject {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 560;
+}
+
+.landing-preview-snippet {
+  margin: 0.15rem 0 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.landing-preview-reader {
+  display: none;
+  padding: 1.15rem 1.25rem 1.4rem;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.landing-preview-reader-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.landing-preview-reader h3 {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.landing-preview-reader-meta {
+  margin: 0.45rem 0 1rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.landing-preview-reader-body {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--muted-strong);
 }
 
 .landing-section {
@@ -689,7 +834,7 @@ body {
 @media (min-width: 900px) {
   .landing-hero {
     padding-top: 3.25rem;
-    gap: 2.5rem;
+    gap: 2rem;
     max-width: none;
     padding-inline: 0;
   }
@@ -704,9 +849,14 @@ body {
     margin-inline: 0;
   }
 
-  .landing-hero-image {
-    border: none;
-    border-block: 1px solid var(--border);
+  .landing-preview {
+    grid-template-columns: 11rem minmax(16rem, 22rem) minmax(0, 1fr);
+    min-height: 26rem;
+  }
+
+  .landing-preview-rail,
+  .landing-preview-reader {
+    display: block;
   }
 
   .landing-feature-list {

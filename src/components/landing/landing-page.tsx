@@ -1,7 +1,6 @@
 "use client";
 
 import { Mail } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -14,7 +13,7 @@ const testimonials = [
   },
   {
     quote:
-      "Signup, inbox, and calendar in one place — our clients stop asking for “the old webmail link.”",
+      "Signup, inbox, and calendar in one place — our clients stop asking for the old webmail link.",
     name: "James Okonkwo",
     role: "Agency founder",
   },
@@ -23,6 +22,30 @@ const testimonials = [
       "License activation was simple, install settings are all in admin, and we were live the same afternoon.",
     name: "Priya Nair",
     role: "IT manager, mid-size retailer",
+  },
+];
+
+const previewMessages = [
+  {
+    from: "Maya Chen",
+    subject: "Q3 invoice ready for review",
+    preview: "Attached is the updated invoice for the coastal route…",
+    time: "9:41",
+    unread: true,
+  },
+  {
+    from: "Ops Desk",
+    subject: "Mailbox signup is open",
+    preview: "New teammates can create @yourdomain addresses today.",
+    time: "Yesterday",
+    unread: false,
+  },
+  {
+    from: "Support",
+    subject: "Welcome to Webmail Pro",
+    preview: "Activate your license, set IMAP hosts, and you are live.",
+    time: "Mon",
+    unread: false,
   },
 ];
 
@@ -87,15 +110,51 @@ export function LandingPage() {
             </div>
           </div>
 
-          <div className="landing-hero-visual" aria-hidden={false}>
-            <Image
-              src="/images/webmail-hero.png"
-              alt="RamerLabs Webmail Pro login screen"
-              width={1600}
-              height={1000}
-              priority
-              className="landing-hero-image"
-            />
+          <div className="landing-hero-visual" aria-label="Webmail product preview">
+            <div className="landing-preview">
+              <aside className="landing-preview-rail">
+                <div className="landing-preview-brand">
+                  <span className="landing-preview-mark" />
+                  <div>
+                    <strong>RamerLabs</strong>
+                    <em>Webmail Pro</em>
+                  </div>
+                </div>
+                <nav>
+                  <span className="is-active">Mail</span>
+                  <span>Contacts</span>
+                  <span>Calendar</span>
+                  <span>Settings</span>
+                </nav>
+              </aside>
+              <div className="landing-preview-list">
+                <div className="landing-preview-list-head">Inbox</div>
+                {previewMessages.map((msg) => (
+                  <article
+                    key={msg.subject}
+                    className={msg.unread ? "is-unread" : undefined}
+                  >
+                    <header>
+                      <strong>{msg.from}</strong>
+                      <time>{msg.time}</time>
+                    </header>
+                    <p className="landing-preview-subject">{msg.subject}</p>
+                    <p className="landing-preview-snippet">{msg.preview}</p>
+                  </article>
+                ))}
+              </div>
+              <div className="landing-preview-reader">
+                <p className="landing-preview-reader-label">Reading</p>
+                <h3>Q3 invoice ready for review</h3>
+                <p className="landing-preview-reader-meta">
+                  Maya Chen · you@yourdomain.com
+                </p>
+                <p className="landing-preview-reader-body">
+                  Attached is the updated invoice for the coastal route. Once
+                  you approve, we will send it from your branded mailbox.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
