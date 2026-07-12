@@ -2,7 +2,9 @@
 
 A licensed Next.js (App Router) webmail product for your domain — Roundcube-style mail plus contacts, calendar, todos, notes, trading journal, expenses, and an admin console.
 
-![RamerLabs Webmail login](docs/login-screenshot.png)
+**Live demo:** [https://webmailpro.ramerlabs.com/](https://webmailpro.ramerlabs.com/)
+
+![RamerLabs Webmail Pro landing page](docs/landing-dark.png)
 
 ## License & admin access
 
@@ -27,7 +29,7 @@ You can also grant mailbox admins by setting **Admin mailbox emails** in **Insta
 3. Open **Install settings** and enter mail/cPanel/IMAP/SMTP/captcha/Redis values
 4. Features stay locked until the license is active
 
-Support: [support@ramerlabs.com](mailto:support@ramerlabs.com) · [ramerlabs.com](https://ramerlabs.com)
+Support: [support@ramerlabs.com](mailto:support@ramerlabs.com) · [ramerlabs.com](https://ramerlabs.com) · [Store product](https://ramerlabs.com/product/ramerlabs-webmail-pro/)
 
 ## Features
 
@@ -50,6 +52,8 @@ Support: [support@ramerlabs.com](mailto:support@ramerlabs.com) · [ramerlabs.com
 - **Installer admin** — documented in README (`admin@{MAIL_DOMAIN}` on new installs); change password after first login
 - **License key** — Activate / check / deactivate from Admin → License
 - **Install settings UI** — Mail domain, cPanel, IMAP/SMTP, captcha, Upstash Redis, and more (replaces most `.env` editing)
+- **Marketing landing page** — Branded front page with sign-in; toggle on/off in Admin → Overview
+- **Light / dark theme** — Theme toggle on the landing page and in the webmail shell (defaults to light)
 - **Recovery email** — Required on signup; used for password reset links
 - **2FA (TOTP)** — Authenticator app + backup codes
 - **Admin dashboard** — Storage, mailboxes, ads, signup gate, email blocklist
@@ -64,7 +68,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000/login](http://localhost:3000/login).
+Open [http://localhost:3000/login](http://localhost:3000/login) or try the live demo at [https://webmailpro.ramerlabs.com/](https://webmailpro.ramerlabs.com/).
 
 **First-time admin access** (see [License & admin access](#license--admin-access)):
 
