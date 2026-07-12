@@ -65,6 +65,29 @@ export function getMailDomain(): string {
   return optional("MAIL_DOMAIN") || "yourdomain.com";
 }
 
+/**
+ * Domains users may pick at signup.
+ * Primary MAIL_DOMAIN plus comma/newline-separated MAIL_DOMAINS / runtime mailDomains.
+ */
+export function getMailDomains(): string[] {
+  const primary = getMailDomain().trim().toLowerCase();
+  const extra = optional("MAIL_DOMAINS");
+  const parts = extra
+    .split(/[\s,;]+/)
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+  const set = new Set<string>();
+  if (primary) set.add(primary);
+  for (const d of parts) set.add(d);
+  return [...set];
+}
+
+export function isAllowedMailDomain(domain: string): boolean {
+  const normalized = domain.trim().toLowerCase();
+  if (!normalized) return false;
+  return getMailDomains().includes(normalized);
+}
+
 export function getCpanelConfig() {
   return {
     host: requiredSoft("CPANEL_HOST", "cPanel host"),

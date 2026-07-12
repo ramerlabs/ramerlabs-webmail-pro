@@ -5,6 +5,8 @@ import { Redis } from "@upstash/redis";
 /** Runtime settings editable from Admin (env used as initial defaults). */
 export interface AppRuntimeConfig {
   mailDomain: string;
+  /** Extra signup domains (comma/newline separated). Primary mailDomain is always included. */
+  mailDomains: string;
   nextPublicAppUrl: string;
   adminEmails: string;
   sessionSecret: string;
@@ -41,6 +43,7 @@ function env(name: string, fallback = ""): string {
 export function defaultRuntimeConfig(): AppRuntimeConfig {
   return {
     mailDomain: env("MAIL_DOMAIN"),
+    mailDomains: env("MAIL_DOMAINS"),
     nextPublicAppUrl: env("NEXT_PUBLIC_APP_URL"),
     adminEmails: env("ADMIN_EMAILS"),
     sessionSecret: env("SESSION_SECRET"),
@@ -145,6 +148,7 @@ export async function hydrateProcessEnvFromConfig(): Promise<AppRuntimeConfig> {
   const cfg = await getRuntimeConfig();
   const map: Record<string, string> = {
     MAIL_DOMAIN: cfg.mailDomain,
+    MAIL_DOMAINS: cfg.mailDomains,
     NEXT_PUBLIC_APP_URL: cfg.nextPublicAppUrl,
     ADMIN_EMAILS: cfg.adminEmails,
     SESSION_SECRET: cfg.sessionSecret,

@@ -3,10 +3,15 @@ import {
   getAdminSettings,
   signupDisabledMessage,
 } from "@/lib/admin-settings";
+import { hydrateProcessEnvFromConfig } from "@/lib/app-config";
 import { upsertAuthProfile } from "@/lib/auth-store";
 import { addPopMailbox } from "@/lib/cpanel";
 import { verifyCaptcha } from "@/lib/captcha";
-import { getMailDomain } from "@/lib/env";
+import {
+  getMailDomain,
+  getMailDomains,
+  isAllowedMailDomain,
+} from "@/lib/env";
 import { requireActiveLicense } from "@/lib/license-store";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 import { getSession } from "@/lib/session";
@@ -16,7 +21,9 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const domain = getMailDomain();
+    await hydrateProcessEnvFromConfig();
+    const defaultDomain = getMailDomain();
+    const allowedDomains = getMailDomains();
 
     const license = await requireActiveLicense();
     if (!license.ok) {
@@ -26,7 +33,7 @@ export async function POST(request: Request) {
     const adminSettings = await getAdminSettings();
     if (adminSettings.signupEnabled === false) {
       return NextResponse.json(
-        { error: signupDisabledMessage(domain) },
+        { error: signupDisabledMessage(defaultDomain) },
         { status: 403 },
       );
     }
@@ -60,7 +67,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const { username, password, recoveryEmail, captchaToken } = parsed.data;
+    const { username, password, recoveryEmail, captchaToken, domain: requestedDomain } =
+      parsed.data;
+
+    const domain = (requestedDomain || defaultDomain).trim().toLowerCase();
+    if (!isAllowedMailDomain(domain)) {
+      return NextResponse.json(
+        {
+          error: `Domain @${domain} is not available for signup. Allowed: ${allowedDomains
+            .map((d) => `@${d}`)
+            .join(", ")}`,
+        },
+        { status: 400 },
+      );
+    }
+
     const email = `${username.toLowerCase()}@${domain}`.toLowerCase();
 
     const { isEmailBlocked, BLOCKED_EMAIL_MESSAGE } = await import(
@@ -91,7 +112,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await addPopMailbox(username, password);
+    const result = await addPopMailbox(username, password, domain);
     if (!result.ok) {
       return NextResponse.json(
         { error: result.error || "Failed to create mailbox" },

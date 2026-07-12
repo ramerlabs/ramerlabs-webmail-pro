@@ -52,6 +52,7 @@ function friendlyCpanelError(status: number, text: string): string {
 export async function addPopMailbox(
   username: string,
   password: string,
+  domainOverride?: string,
 ): Promise<AddMailboxResult> {
   let cfg;
   try {
@@ -79,13 +80,14 @@ export async function addPopMailbox(
   }
 
   const localPart = username.trim().toLowerCase();
-  const email = `${localPart}@${cfg.domain}`;
+  const domain = (domainOverride || cfg.domain).trim().toLowerCase();
+  const email = `${localPart}@${domain}`;
 
   const params = new URLSearchParams({
     email: localPart,
     password,
     quota: String(cfg.quotaMb),
-    domain: cfg.domain,
+    domain,
   });
 
   // Prefer HTTPS UAPI execute endpoint
@@ -444,3 +446,50 @@ export async function listMailboxesWithDisk(): Promise<{
 
   return { ok: true, mailboxes };
 }
+
+/** Domains on this cPanel account that can host email (main, addon, parked). */
+export async function listCpanelMailDomains(): Promise<{
+  ok: boolean;
+  domains: string[];
+  error?: string;
+}> {
+  const result = await cpanelExecute("DomainInfo", "list_domains");
+  if (!result.ok) {
+    return {
+      ok: false,
+      domains: [],
+      error: result.error || "Failed to list cPanel domains",
+    };
+  }
+
+  const data = (result.data || {}) as Record<string, unknown>;
+  const collected = new Set<string>();
+
+  const push = (value: unknown) => {
+    if (typeof value === "string" && value.trim()) {
+      collected.add(value.trim().toLowerCase());
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string" && item.trim()) {
+          collected.add(item.trim().toLowerCase());
+        } else if (item && typeof item === "object") {
+          const row = item as Record<string, unknown>;
+          const name = row.domain || row.domain_name || row.name;
+          if (typeof name === "string" && name.trim()) {
+            collected.add(name.trim().toLowerCase());
+          }
+        }
+      }
+    }
+  };
+
+  push(data.main_domain);
+  push(data.addon_domains);
+  push(data.parked_domains);
+  // Subdomains often have mail too — include them
+  push(data.sub_domains);
+
+  const domains = [...collected].sort((a, b) => a.localeCompare(b));
+  return { ok: true, domains };
+}
+

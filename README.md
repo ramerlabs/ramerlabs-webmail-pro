@@ -34,7 +34,8 @@ Support: [support@ramerlabs.com](mailto:support@ramerlabs.com) · [ramerlabs.com
 ## Features
 
 ### Mail
-- **Secure signup** — Captcha-protected signup creates a real mailbox via cPanel (`username@MAIL_DOMAIN`)
+- **Secure signup** — Captcha-protected signup creates a real mailbox via cPanel (`username@MAIL_DOMAIN`); when multiple domains are configured, users pick `@domain` at signup
+
 - **Sign-in** — IMAP-verified login with encrypted iron-session cookies
 - **Inbox & folders** — Browse Inbox, Sent, Drafts, Trash, Junk, and Archive
 - **Read & compose** — Three-pane UI with search, threading option, reply/forward, and attachments

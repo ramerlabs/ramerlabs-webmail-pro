@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 
 const configSchema = z.object({
   mailDomain: z.string().optional(),
+  mailDomains: z.string().optional(),
   nextPublicAppUrl: z.string().optional(),
   adminEmails: z.string().optional(),
   sessionSecret: z.string().optional(),

@@ -3,19 +3,22 @@ import {
   getAdminSettings,
   signupDisabledMessage,
 } from "@/lib/admin-settings";
-import { getMailDomain } from "@/lib/env";
+import { getMailDomain, getMailDomains } from "@/lib/env";
 import { isLicenseActive } from "@/lib/license-store";
 import {
   LICENSE_INACTIVE_MESSAGE,
   RLM_COMPANY_URL,
 } from "@/lib/rlm-internal";
+import { hydrateProcessEnvFromConfig } from "@/lib/app-config";
 
 export const runtime = "nodejs";
 
 /** Public signup availability for the signup page. */
 export async function GET() {
   try {
+    await hydrateProcessEnvFromConfig();
     const domain = getMailDomain();
+    const domains = getMailDomains();
     const [settings, licenseActive] = await Promise.all([
       getAdminSettings(),
       isLicenseActive(),
@@ -35,6 +38,7 @@ export async function GET() {
         signupEnabled,
         licenseActive,
         domain,
+        domains,
         message,
         companyUrl: RLM_COMPANY_URL,
       },
@@ -46,6 +50,7 @@ export async function GET() {
       signupEnabled: false,
       licenseActive: false,
       domain,
+      domains: [domain],
       message: LICENSE_INACTIVE_MESSAGE,
       companyUrl: RLM_COMPANY_URL,
     });

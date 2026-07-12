@@ -21,6 +21,8 @@ export const signupSchema = z.object({
     .trim()
     .email("Enter a valid recovery email address"),
   captchaToken: z.string().optional(),
+  /** Optional; must be in the allowed signup domain list. */
+  domain: z.string().trim().min(1).max(253).optional(),
 });
 
 export const loginSchema = z.object({

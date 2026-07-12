@@ -22,6 +22,8 @@ export function SignupForm({
 }: SignupFormProps) {
   const router = useRouter();
   const [username, setUsername] = useState("");
+  const [selectedDomain, setSelectedDomain] = useState(domain);
+  const [domains, setDomains] = useState<string[]>([domain]);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
@@ -44,6 +46,13 @@ export function SignupForm({
         setClosedMessage(
           data.message ||
             "Build your custom webmail @yourdomain.com — contact ramerlabs.com",
+        );
+        const list: string[] = Array.isArray(data.domains) && data.domains.length
+          ? data.domains.map((d: string) => String(d).toLowerCase())
+          : [data.domain || domain].filter(Boolean);
+        setDomains(list);
+        setSelectedDomain((prev) =>
+          list.includes(prev) ? prev : list[0] || domain,
         );
       } catch {
         setSignupEnabled(true);
@@ -104,6 +113,7 @@ export function SignupForm({
           username,
           password,
           recoveryEmail: recoveryEmail.trim(),
+          domain: selectedDomain,
           captchaToken: captchaToken || undefined,
         }),
       });
@@ -193,10 +203,31 @@ export function SignupForm({
             placeholder="you"
             disabled={!captchaReady}
           />
-          <span className="flex items-center border-l border-[var(--border)] bg-[var(--surface-muted)] px-3 text-sm text-[var(--muted)]">
-            @{domain}
-          </span>
+          {domains.length > 1 ? (
+            <select
+              aria-label="Email domain"
+              className="max-w-[55%] border-l border-[var(--border)] bg-[var(--surface-muted)] px-2 text-sm text-[var(--foreground)] outline-none"
+              value={selectedDomain}
+              onChange={(e) => setSelectedDomain(e.target.value)}
+              disabled={!captchaReady}
+            >
+              {domains.map((d) => (
+                <option key={d} value={d}>
+                  @{d}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="flex items-center border-l border-[var(--border)] bg-[var(--surface-muted)] px-3 text-sm text-[var(--muted)]">
+              @{selectedDomain || domain}
+            </span>
+          )}
         </div>
+        {domains.length > 1 && (
+          <p className="mt-1.5 text-xs text-[var(--muted)]">
+            Choose which domain your mailbox should use.
+          </p>
+        )}
       </div>
 
       <div>

@@ -40,6 +40,7 @@ type Tab = "overview" | "license" | "install" | "account";
 
 const emptyConfig: Record<string, string> = {
   mailDomain: "",
+  mailDomains: "",
   nextPublicAppUrl: "",
   adminEmails: "",
   sessionSecret: "",
@@ -101,6 +102,7 @@ export function AdminDashboard({
 
   const [config, setConfig] = useState(emptyConfig);
   const [configSaving, setConfigSaving] = useState(false);
+  const [domainsBusy, setDomainsBusy] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -369,6 +371,37 @@ export function AdminDashboard({
     }
   }
 
+  async function loadDomainsFromCpanel() {
+    setDomainsBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/domains", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to load domains from cPanel");
+        return;
+      }
+      const list: string[] = Array.isArray(data.domains) ? data.domains : [];
+      if (!list.length) {
+        setError("cPanel returned no domains.");
+        return;
+      }
+      setConfig((c) => ({
+        ...c,
+        mailDomains: list.join(", "),
+        mailDomain: c.mailDomain || list[0] || "",
+      }));
+      setMessage(
+        `Loaded ${list.length} domain(s) from cPanel. Review, then Save install settings.`,
+      );
+    } catch {
+      setError("Network error loading domains");
+    } finally {
+      setDomainsBusy(false);
+    }
+  }
+
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
     setPasswordBusy(true);
@@ -628,9 +661,37 @@ export function AdminDashboard({
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                {field("mailDomain", "Mail domain", {
-                  hint: "Shown as @domain on signup",
+                {field("mailDomain", "Primary mail domain", {
+                  hint: "Default @domain and installer admin@domain",
                 })}
+                <div className="sm:col-span-2">
+                  <label className="field-label" htmlFor="mailDomains">
+                    Signup domains
+                  </label>
+                  <textarea
+                    id="mailDomains"
+                    className="field-input mt-1.5 min-h-[4.5rem] font-mono text-sm"
+                    value={config.mailDomains}
+                    onChange={(e) =>
+                      setConfig((c) => ({ ...c, mailDomains: e.target.value }))
+                    }
+                    placeholder="example.com, addon.com, another.com"
+                  />
+                  <p className="mt-1.5 text-xs text-[var(--muted)]">
+                    Comma or newline separated. Users pick one of these at
+                    signup. Primary domain is always included.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-secondary mt-2 gap-2"
+                    disabled={domainsBusy || configSaving}
+                    onClick={() => void loadDomainsFromCpanel()}
+                  >
+                    {domainsBusy
+                      ? "Loading from cPanel…"
+                      : "Load domains from cPanel"}
+                  </button>
+                </div>
                 {field("nextPublicAppUrl", "App URL")}
                 {field("adminEmails", "Admin mailbox emails", {
                   hint: "Comma-separated mailbox admins",
