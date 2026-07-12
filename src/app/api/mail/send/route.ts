@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { appendToSentFolder } from "@/lib/imap";
-import { requireActiveLicense } from "@/lib/license-store";
+import { licenseGuard } from "@/lib/license-guard";
 import { sendMail, type MailAttachment } from "@/lib/smtp";
 import { getSettings, requireSession } from "@/lib/session";
 import { sendMailSchema } from "@/lib/validations";
@@ -52,10 +52,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const license = await requireActiveLicense();
-  if (!license.ok) {
-    return NextResponse.json({ error: license.message }, { status: 403 });
-  }
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
 
   try {
     const contentType = request.headers.get("content-type") || "";

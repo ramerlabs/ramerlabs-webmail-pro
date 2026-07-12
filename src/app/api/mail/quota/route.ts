@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { licenseGuard } from "@/lib/license-guard";
 import { fetchMailQuota, formatQuotaBytes } from "@/lib/quota";
 import { requireSession } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 export async function GET() {
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
+
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

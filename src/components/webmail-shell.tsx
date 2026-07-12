@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CandlestickChart,
   CheckSquare,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -52,6 +53,9 @@ export function WebmailShell({
   const router = useRouter();
   const { theme, toggle } = useTheme();
   const [isAdmin, setIsAdmin] = useState(isAdminProp);
+  const [licenseActive, setLicenseActive] = useState<boolean | null>(null);
+  const [licenseMessage, setLicenseMessage] = useState<string | null>(null);
+  const [companyUrl, setCompanyUrl] = useState("https://ramerlabs.com");
 
   useEffect(() => {
     if (isAdminProp) {
@@ -69,11 +73,33 @@ export function WebmailShell({
     })();
   }, [isAdminProp]);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/config/license", { cache: "no-store" });
+        const data = await res.json();
+        setLicenseActive(Boolean(data.active));
+        setLicenseMessage(
+          data.message ||
+            "RamerLabs Webmail Pro is not active. Please get a license key at ramerlabs.com to unlock this feature.",
+        );
+        if (data.companyUrl) setCompanyUrl(data.companyUrl);
+      } catch {
+        setLicenseActive(false);
+        setLicenseMessage(
+          "RamerLabs Webmail Pro is not active. Please get a license key at ramerlabs.com to unlock this feature.",
+        );
+      }
+    })();
+  }, []);
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
   }
+
+  const featuresLocked = licenseActive !== true && active !== "admin";
 
   const links: {
     key: NavKey;
@@ -123,7 +149,7 @@ export function WebmailShell({
                 RamerLabs
               </p>
               <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
-                Webmail
+                Webmail Pro
               </p>
             </div>
           </div>
@@ -142,17 +168,23 @@ export function WebmailShell({
           </button>
         </div>
 
-        {sidebarCta}
+        {!featuresLocked && sidebarCta}
 
         <nav className="mb-3 flex flex-col gap-0.5">
           {links.map(({ key, href, label, icon: Icon }) => {
             const isActive = active === key;
+            const locked = licenseActive !== true && key !== "admin";
             return (
               <Link
                 key={key}
                 href={href}
+                aria-disabled={locked}
+                onClick={(e) => {
+                  if (locked) e.preventDefault();
+                }}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                  locked && "pointer-events-none opacity-40",
                   isActive
                     ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
                     : "text-[var(--muted-strong)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]",
@@ -165,7 +197,7 @@ export function WebmailShell({
           })}
         </nav>
 
-        {sidebarExtra}
+        {!featuresLocked && sidebarExtra}
 
         <div className="mt-auto shrink-0 border-t border-[var(--border)] pt-4">
           <div className="mb-3 flex items-center gap-3 px-2">
@@ -192,7 +224,38 @@ export function WebmailShell({
         </div>
       </aside>
 
-      {children}
+      {featuresLocked ? (
+        <section className="mail-reader mail-reader-full flex flex-1 items-center justify-center p-6">
+          <div className="mx-auto max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center shadow-sm">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+              <KeyRound className="h-5 w-5" />
+            </div>
+            <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
+              License required
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--muted-strong)]">
+              {licenseMessage}
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+              {isAdmin && (
+                <Link href="/admin" className="btn-primary">
+                  Open admin · activate license
+                </Link>
+              )}
+              <a
+                href={companyUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-secondary"
+              >
+                Get license at ramerlabs.com
+              </a>
+            </div>
+          </div>
+        </section>
+      ) : (
+        children
+      )}
     </div>
   );
 }

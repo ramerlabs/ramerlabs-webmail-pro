@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchEmailByUid, type MailFolder } from "@/lib/imap";
+import { licenseGuard } from "@/lib/license-guard";
 import { requireSession } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -9,6 +10,9 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ uid: string }> },
 ) {
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
+
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

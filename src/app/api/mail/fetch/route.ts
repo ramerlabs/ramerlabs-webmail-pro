@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { licenseGuard } from "@/lib/license-guard";
 import { fetchLatestEmails, type MailFolder } from "@/lib/imap";
 import { requireSession } from "@/lib/session";
 import { fetchMailSchema } from "@/lib/validations";
@@ -7,6 +8,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
+
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

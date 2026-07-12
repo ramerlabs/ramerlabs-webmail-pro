@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { licenseGuard } from "@/lib/license-guard";
 import { z } from "zod";
 import {
   addExpenseCategory,
@@ -32,6 +33,9 @@ const categorySchema = z.object({
 });
 
 export async function GET() {
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
+
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -60,6 +64,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
+
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -140,6 +147,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
+
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -168,6 +178,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
+
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

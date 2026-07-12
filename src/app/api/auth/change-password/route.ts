@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { licenseGuard } from "@/lib/license-guard";
 import { z } from "zod";
 import { changeMailboxPassword } from "@/lib/cpanel";
 import { verifyImapCredentials } from "@/lib/imap";
@@ -16,6 +17,9 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  const licenseBlocked = await licenseGuard();
+  if (licenseBlocked) return licenseBlocked;
+
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
