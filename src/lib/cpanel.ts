@@ -91,8 +91,10 @@ export async function addPopMailbox(
     password,
     quota: String(cfg.quotaMb),
     domain,
-    // Same as cPanel UI checkbox: deliver "Client configuration settings" to the new inbox
-    send_welcome_email: "1",
+    // Do not use send_welcome_email=1 — cPanel's API welcome message is
+    // often delivered as raw MIME (missing Content-Type), so Roundcube
+    // shows boundaries. We deliver a proper welcome via IMAP instead.
+    send_welcome_email: "0",
   });
 
   try {
@@ -498,6 +500,52 @@ export async function listCpanelMailDomains(): Promise<{
 
   const domains = [...collected].sort((a, b) => a.localeCompare(b));
   return { ok: true, domains };
+}
+
+export type EmailClientSettings = {
+  account: string;
+  inboxHost: string;
+  inboxPort: number;
+  smtpHost: string;
+  smtpPort: number;
+  popPort?: number;
+};
+
+/** IMAP/SMTP host settings cPanel shows in the welcome/config email. */
+export async function getEmailClientSettings(
+  account: string,
+): Promise<{ ok: boolean; settings?: EmailClientSettings; error?: string }> {
+  const email = account.trim().toLowerCase();
+  const result = await cpanelExecute("Email", "get_client_settings", {
+    account: email,
+  });
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error || "Failed to load client settings",
+    };
+  }
+
+  const data = (result.data || {}) as Record<string, unknown>;
+  const inboxHost = String(
+    data.inbox_host || data.mail_domain || "",
+  ).trim();
+  const smtpHost = String(data.smtp_host || inboxHost).trim();
+  if (!inboxHost) {
+    return { ok: false, error: "Client settings missing mail host" };
+  }
+
+  return {
+    ok: true,
+    settings: {
+      account: String(data.account || email).trim().toLowerCase() || email,
+      inboxHost,
+      inboxPort: Number(data.inbox_port) || 993,
+      smtpHost,
+      smtpPort: Number(data.smtp_port) || 465,
+      popPort: 995,
+    },
+  };
 }
 
 /**

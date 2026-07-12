@@ -135,6 +135,15 @@ export async function POST(request: Request) {
     const createdEmail = (result.email || email).toLowerCase();
 
     try {
+      const { deliverMailboxWelcomeEmail } = await import(
+        "@/lib/mailbox-welcome"
+      );
+      await deliverMailboxWelcomeEmail(createdEmail, password);
+    } catch (err) {
+      console.error("Failed to deliver welcome config email", err);
+    }
+
+    try {
       await upsertAuthProfile(createdEmail, {
         recoveryEmail,
         totpEnabled: false,

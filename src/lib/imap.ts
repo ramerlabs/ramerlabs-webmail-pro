@@ -244,6 +244,42 @@ function buildRfc822(options: {
   return parts.join("\r\n");
 }
 
+/** Deliver a message into INBOX (e.g. welcome/config after signup). */
+export async function appendToInbox(
+  email: string,
+  password: string,
+  message: {
+    from: string;
+    fromName?: string;
+    subject: string;
+    text?: string;
+    html?: string;
+  },
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    return await withClient(email, password, async (client) => {
+      const fromHeader = message.fromName
+        ? formatFromHeader(message.from, message.fromName)
+        : formatFromHeader(message.from);
+      const raw = buildRfc822({
+        from: fromHeader,
+        to: email,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+        replyTo: message.from,
+      });
+      await client.append("INBOX", Buffer.from(raw, "utf8"), []);
+      return { ok: true };
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to deliver welcome mail",
+    };
+  }
+}
+
 /** Save a copy of an outgoing message into the IMAP Sent folder. */
 export async function appendToSentFolder(
   email: string,
@@ -430,6 +466,21 @@ function parseMimeBody(
       : source.toString("latin1");
 
   let { html, text } = extractMimeParts(raw);
+
+  // cPanel API welcome mail sometimes stores multipart body without a
+  // top-level Content-Type header — recover by parsing the first boundary.
+  if (!html && !text) {
+    const orphan = raw.match(
+      /^--([^\r\n]+)\r?\n([\s\S]*)$/,
+    );
+    if (orphan) {
+      const recovered = extractMimeParts(
+        `Content-Type: multipart/mixed; boundary="${orphan[1]}"\r\n\r\n${raw}`,
+      );
+      html = recovered.html;
+      text = recovered.text;
+    }
+  }
 
   if (!html && !text) {
     const bodyStart = raw.indexOf("\r\n\r\n");
