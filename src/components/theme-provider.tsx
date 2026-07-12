@@ -11,42 +11,47 @@ import {
 
 type Theme = "light" | "dark";
 
+const STORAGE_KEY = "rl_webmail_theme";
+
 const ThemeContext = createContext<{
   theme: Theme;
   toggle: () => void;
   setTheme: (t: Theme) => void;
 } | null>(null);
 
+function readStoredTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "dark" || stored === "light") return stored;
+  } catch {
+    /* ignore */
+  }
+  return "light";
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("rl_webmail_theme");
-    const preferred =
-      stored === "dark" || stored === "light"
-        ? stored
-        : window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
+    const preferred = readStoredTheme();
     setThemeState(preferred);
     document.documentElement.dataset.theme = preferred;
-    setReady(true);
   }, []);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     document.documentElement.dataset.theme = t;
-    window.localStorage.setItem("rl_webmail_theme", t);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, t);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const toggle = useCallback(() => {
     setTheme(theme === "dark" ? "light" : "dark");
   }, [setTheme, theme]);
-
-  if (!ready) {
-    return <div className="min-h-full">{children}</div>;
-  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggle, setTheme }}>

@@ -37,7 +37,7 @@ export function LoginForm({ domain }: LoginFormProps) {
           setError(data.error || "Verification failed");
           return;
         }
-        router.push("/mail");
+        router.push(data.isAppAdmin ? "/admin" : "/mail");
         router.refresh();
         return;
       }

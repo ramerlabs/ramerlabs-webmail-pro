@@ -9,14 +9,17 @@ export async function GET() {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
 
-  const isAdmin =
-    Boolean(session.isAppAdmin) || isAdminEmail(session.email);
+  const hasMailbox = Boolean(session.password);
+  const isAppAdmin = Boolean(session.isAppAdmin);
+  const isAdmin = isAppAdmin || isAdminEmail(session.email);
 
   return NextResponse.json({
     authenticated: true,
     email: session.email,
     settings: getSettings(session),
     isAdmin,
-    isAppAdmin: Boolean(session.isAppAdmin),
+    isAppAdmin,
+    /** False for installer-only sessions (no IMAP password). */
+    hasMailbox,
   });
 }

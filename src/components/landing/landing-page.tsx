@@ -1,9 +1,10 @@
 "use client";
 
-import { Mail } from "lucide-react";
+import { Mail, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LoginForm } from "@/components/auth/login-form";
+import { useTheme } from "@/components/theme-provider";
 
 const testimonials = [
   {
@@ -52,6 +53,7 @@ const previewMessages = [
 
 export function LandingPage({ domain }: { domain: string }) {
   const [ready, setReady] = useState(false);
+  const { theme, toggle } = useTheme();
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setReady(true));
@@ -72,6 +74,21 @@ export function LandingPage({ domain }: { domain: string }) {
             </span>
           </Link>
           <div className="landing-nav-actions">
+            <button
+              type="button"
+              onClick={toggle}
+              className="landing-theme-toggle"
+              title={theme === "dark" ? "Light mode" : "Dark mode"}
+              aria-label={
+                theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+              }
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
             <a href="#signin" className="landing-link">
               Sign in
             </a>

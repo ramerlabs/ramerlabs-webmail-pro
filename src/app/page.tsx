@@ -15,7 +15,8 @@ export default async function HomePage() {
   try {
     const session = await getSession();
     if (session.isLoggedIn && session.email) {
-      redirect(session.isAppAdmin ? "/admin" : "/mail");
+      // Installer-only sessions have no IMAP password — Admin console only
+      redirect(session.password ? "/mail" : "/admin");
     }
   } catch {
     /* first boot without session secret */

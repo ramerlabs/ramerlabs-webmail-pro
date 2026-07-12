@@ -22,23 +22,8 @@ export async function POST(request: Request) {
 
     const { email, password } = parsed.data;
 
-    // Installer admin: admin@{MAIL_DOMAIN} / admin123 (no IMAP mailbox required)
     await ensureDefaultAppAdmin();
     const appAdmin = await verifyAppAdmin(email, password);
-    if (appAdmin) {
-      const session = await getSession();
-      session.isLoggedIn = true;
-      session.isAppAdmin = true;
-      session.email = appAdmin.username;
-      session.password = "";
-      await session.save();
-      return NextResponse.json({
-        ok: true,
-        email: appAdmin.username,
-        isAppAdmin: true,
-        requires2fa: false,
-      });
-    }
 
     const { isEmailBlocked, BLOCKED_EMAIL_MESSAGE } = await import(
       "@/lib/admin-settings"
@@ -50,46 +35,66 @@ export async function POST(request: Request) {
       );
     }
 
+    // Prefer a real mailbox session when IMAP accepts the password.
+    // Installer admin@domain / admin123 alone has no IMAP access (Admin only).
     const verify = await verifyImapCredentials(email, password);
 
-    if (!verify.ok) {
-      return NextResponse.json(
-        { error: "Invalid email or password." },
-        { status: 401 },
-      );
-    }
+    if (verify.ok) {
+      const profile = await getAuthProfile(email);
+      if (profile?.totpEnabled) {
+        const pendingToken = signPayload(
+          {
+            type: "2fa",
+            email: email.toLowerCase(),
+            passwordEnc: encryptSecret(password),
+            isAppAdmin: Boolean(appAdmin),
+          },
+          5 * 60,
+        );
+        return NextResponse.json({
+          ok: true,
+          requires2fa: true,
+          pendingToken,
+          email,
+        });
+      }
 
-    const profile = await getAuthProfile(email);
-    if (profile?.totpEnabled) {
-      const pendingToken = signPayload(
-        {
-          type: "2fa",
-          email: email.toLowerCase(),
-          passwordEnc: encryptSecret(password),
-        },
-        5 * 60,
-      );
+      const session = await getSession();
+      session.isLoggedIn = true;
+      session.isAppAdmin = Boolean(appAdmin);
+      session.email = email;
+      session.password = password;
+      await session.save();
+
       return NextResponse.json({
         ok: true,
-        requires2fa: true,
-        pendingToken,
         email,
+        isAppAdmin: Boolean(appAdmin),
+        hasMailbox: true,
+        requires2fa: false,
       });
     }
 
-    const session = await getSession();
-    session.isLoggedIn = true;
-    session.isAppAdmin = false;
-    session.email = email;
-    session.password = password;
-    await session.save();
+    if (appAdmin) {
+      const session = await getSession();
+      session.isLoggedIn = true;
+      session.isAppAdmin = true;
+      session.email = appAdmin.username;
+      session.password = "";
+      await session.save();
+      return NextResponse.json({
+        ok: true,
+        email: appAdmin.username,
+        isAppAdmin: true,
+        hasMailbox: false,
+        requires2fa: false,
+      });
+    }
 
-    return NextResponse.json({
-      ok: true,
-      email,
-      isAppAdmin: false,
-      requires2fa: false,
-    });
+    return NextResponse.json(
+      { error: "Invalid email or password." },
+      { status: 401 },
+    );
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Login failed unexpectedly";

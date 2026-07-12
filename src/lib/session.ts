@@ -55,14 +55,17 @@ export async function getSession() {
 /** Mailbox session (IMAP credentials present). */
 export async function requireSession() {
   const session = await getSession();
-  if (
-    !session.isLoggedIn ||
-    !session.email ||
-    !session.password ||
-    session.isAppAdmin
-  ) {
+  if (!session.isLoggedIn || !session.email || !session.password) {
     return null;
   }
+  return session;
+}
+
+/** Redirect installer-only sessions (no IMAP password) away from mailbox apps. */
+export async function requireMailboxPage() {
+  const session = await getSession();
+  if (!session.isLoggedIn || !session.email) return null;
+  if (!session.password) return null;
   return session;
 }
 

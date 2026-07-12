@@ -53,20 +53,20 @@ export function WebmailShell({
   const router = useRouter();
   const { theme, toggle } = useTheme();
   const [isAdmin, setIsAdmin] = useState(isAdminProp);
+  const [hasMailbox, setHasMailbox] = useState(true);
   const [licenseActive, setLicenseActive] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState<string | null>(null);
   const [companyUrl, setCompanyUrl] = useState("https://ramerlabs.com");
 
   useEffect(() => {
-    if (isAdminProp) {
-      setIsAdmin(true);
-      return;
-    }
     void (async () => {
       try {
         const res = await fetch("/api/auth/me", { cache: "no-store" });
         const data = await res.json();
-        if (res.ok) setIsAdmin(Boolean(data.isAdmin));
+        if (res.ok) {
+          setIsAdmin(Boolean(data.isAdmin) || isAdminProp);
+          setHasMailbox(data.hasMailbox !== false);
+        }
       } catch {
         /* ignore */
       }
@@ -101,7 +101,7 @@ export function WebmailShell({
 
   const featuresLocked = licenseActive !== true && active !== "admin";
 
-  const links: {
+  const allLinks: {
     key: NavKey;
     href: string;
     label: string;
@@ -126,6 +126,11 @@ export function WebmailShell({
     { key: "expenses", href: "/expenses", label: "Expenses", icon: Wallet },
     { key: "settings", href: "/settings", label: "Settings", icon: Settings },
   ];
+
+  // Installer-only (no IMAP) — Admin console only
+  const links = hasMailbox
+    ? [...allLinks]
+    : [];
 
   if (isAdmin) {
     links.push({

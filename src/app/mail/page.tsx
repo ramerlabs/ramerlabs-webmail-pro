@@ -9,5 +9,10 @@ export default async function MailPage() {
     redirect("/login");
   }
 
+  // Installer admin has no IMAP password — Admin console only
+  if (!session.password) {
+    redirect("/admin");
+  }
+
   return <MailDashboard email={session.email} />;
 }

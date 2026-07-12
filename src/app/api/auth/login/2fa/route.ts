@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       email: string;
       passwordEnc?: string;
       password?: string;
+      isAppAdmin?: boolean;
     }>(parsed.data.pendingToken);
 
     if (!pending || pending.type !== "2fa" || !pending.email) {
@@ -110,7 +111,7 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     session.isLoggedIn = true;
-    session.isAppAdmin = false;
+    session.isAppAdmin = Boolean(pending.isAppAdmin);
     session.email = email;
     session.password = password;
     await session.save();
@@ -118,6 +119,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       email,
+      isAppAdmin: Boolean(pending.isAppAdmin),
       usedBackupCode: backupOk,
     });
   } catch (err) {

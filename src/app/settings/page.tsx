@@ -5,5 +5,6 @@ import { getSession } from "@/lib/session";
 export default async function SettingsRoute() {
   const session = await getSession();
   if (!session.isLoggedIn || !session.email) redirect("/login");
+  if (!session.password) redirect("/admin");
   return <SettingsPage email={session.email} />;
 }

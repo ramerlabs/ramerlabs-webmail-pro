@@ -12,7 +12,7 @@ export default async function LoginPage({
   try {
     const session = await getSession();
     if (session.isLoggedIn && session.email) {
-      redirect("/mail");
+      redirect(session.password ? "/mail" : "/admin");
     }
   } catch {
     /* SESSION_SECRET may be unset during first boot */
