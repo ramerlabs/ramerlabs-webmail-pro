@@ -23,3 +23,7 @@ export function getLicenseProductSlug(): string {
 export const RLM_PRODUCT_NAME = "RamerLabs Webmail Pro";
 export const RLM_SUPPORT_EMAIL = "support@ramerlabs.com";
 export const RLM_COMPANY_URL = "https://ramerlabs.com";
+
+/** User-facing message when the product license is inactive (no server URL / slug). */
+export const LICENSE_INACTIVE_MESSAGE =
+  "RamerLabs Webmail Pro is not active. Please get a license key at ramerlabs.com to unlock this feature.";

@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { Redis } from "@upstash/redis";
 import { getInstallId, validateLicense } from "@/lib/license-client";
+import { LICENSE_INACTIVE_MESSAGE } from "@/lib/rlm-internal";
 
 const LICENSE_KEY = "webmail:app:license";
 
@@ -105,4 +106,12 @@ export async function isLicenseActive(): Promise<boolean> {
     lastMessage: result.message || (result.success ? "Valid" : "Invalid"),
   });
   return next.activated;
+}
+
+export async function requireActiveLicense(): Promise<
+  { ok: true } | { ok: false; message: string }
+> {
+  const active = await isLicenseActive();
+  if (active) return { ok: true };
+  return { ok: false, message: LICENSE_INACTIVE_MESSAGE };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { appendToSentFolder } from "@/lib/imap";
+import { requireActiveLicense } from "@/lib/license-store";
 import { sendMail, type MailAttachment } from "@/lib/smtp";
 import { getSettings, requireSession } from "@/lib/session";
 import { sendMailSchema } from "@/lib/validations";
@@ -49,6 +50,11 @@ export async function POST(request: Request) {
   const session = await requireSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const license = await requireActiveLicense();
+  if (!license.ok) {
+    return NextResponse.json({ error: license.message }, { status: 403 });
   }
 
   try {

@@ -30,6 +30,8 @@ export function SignupForm({
   const [loading, setLoading] = useState(false);
   const [signupEnabled, setSignupEnabled] = useState<boolean | null>(null);
   const [closedMessage, setClosedMessage] = useState<string | null>(null);
+  const [licenseActive, setLicenseActive] = useState(true);
+  const [companyUrl, setCompanyUrl] = useState("https://ramerlabs.com");
 
   useEffect(() => {
     void (async () => {
@@ -37,12 +39,15 @@ export function SignupForm({
         const res = await fetch("/api/config/signup", { cache: "no-store" });
         const data = await res.json();
         setSignupEnabled(data.signupEnabled !== false);
+        setLicenseActive(data.licenseActive !== false);
+        setCompanyUrl(data.companyUrl || "https://ramerlabs.com");
         setClosedMessage(
           data.message ||
             "Build your custom webmail @yourdomain.com — contact ramerlabs.com",
         );
       } catch {
         setSignupEnabled(true);
+        setLicenseActive(true);
       }
     })();
   }, [domain]);
@@ -118,23 +123,28 @@ export function SignupForm({
   }
 
   if (signupEnabled === false) {
+    const isLicenseIssue = licenseActive === false;
     return (
       <div className="space-y-5">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-4 text-sm leading-relaxed text-[var(--foreground)]">
           <p className="font-medium">
             {closedMessage ||
-              "Build your custom webmail @yourdomain.com — contact ramerlabs.com"}
+              (isLicenseIssue
+                ? "RamerLabs Webmail Pro is not active. Please get a license key at ramerlabs.com to unlock this feature."
+                : "Build your custom webmail @yourdomain.com — contact ramerlabs.com")}
           </p>
           <p className="mt-2 text-[var(--muted)]">
-            New mailbox signup is currently closed on this site.
+            {isLicenseIssue
+              ? "Mailbox registration is locked until a valid license is activated in Admin."
+              : "New mailbox signup is currently closed on this site."}
           </p>
           <a
-            href="https://ramerlabs.com"
+            href={companyUrl}
             target="_blank"
             rel="noreferrer"
             className="mt-3 inline-block font-medium text-[var(--accent)] hover:underline"
           >
-            Visit ramerlabs.com →
+            Get a license at ramerlabs.com →
           </a>
         </div>
         <p className="text-center text-sm text-[var(--muted)]">

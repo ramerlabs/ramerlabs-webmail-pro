@@ -7,6 +7,7 @@ import { upsertAuthProfile } from "@/lib/auth-store";
 import { addPopMailbox } from "@/lib/cpanel";
 import { verifyCaptcha } from "@/lib/captcha";
 import { getMailDomain } from "@/lib/env";
+import { requireActiveLicense } from "@/lib/license-store";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 import { getSession } from "@/lib/session";
 import { signupSchema } from "@/lib/validations";
@@ -16,6 +17,12 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const domain = getMailDomain();
+
+    const license = await requireActiveLicense();
+    if (!license.ok) {
+      return NextResponse.json({ error: license.message }, { status: 403 });
+    }
+
     const adminSettings = await getAdminSettings();
     if (adminSettings.signupEnabled === false) {
       return NextResponse.json(
