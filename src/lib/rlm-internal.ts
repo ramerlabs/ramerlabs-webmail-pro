@@ -10,7 +10,7 @@ export function getLicenseServerUrl(): string {
   // Prefer env override for local LM testing only; production uses split URL.
   const override = process.env.RLM_LICENSE_SERVER?.trim();
   if (override) return override.replace(/\/$/, "");
-  return joinParts(["https://", "plugins.", "ramerlabs", ".com"]);
+  return joinParts(["https://", "ramerlabs", ".com"]);
 }
 
 /** Product slug for License Manager (not shown in customer UI). */
