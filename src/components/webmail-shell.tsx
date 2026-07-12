@@ -58,7 +58,17 @@ export function WebmailShell({
   const [mailboxPassword, setMailboxPassword] = useState("");
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
-  const [licenseActive, setLicenseActive] = useState<boolean | null>(null);
+  const [licenseActive, setLicenseActive] = useState<boolean | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const cached = window.sessionStorage.getItem("rl_webmail_license_active");
+      if (cached === "1") return true;
+      if (cached === "0") return false;
+    } catch {
+      /* ignore */
+    }
+    return null;
+  });
   const [licenseMessage, setLicenseMessage] = useState<string | null>(null);
   const [companyUrl, setCompanyUrl] = useState("https://ramerlabs.com");
 
@@ -83,22 +93,36 @@ export function WebmailShell({
       try {
         const res = await fetch("/api/config/license", { cache: "no-store" });
         const data = await res.json();
-        setLicenseActive(Boolean(data.active));
+        const active = Boolean(data.active);
+        setLicenseActive(active);
         setLicenseMessage(
-          data.message ||
-            "RamerLabs Webmail Pro is not active. Please get a license key at ramerlabs.com to unlock this feature.",
+          active
+            ? null
+            : data.message ||
+                "RamerLabs Webmail Pro is not active. Please get a license key at ramerlabs.com to unlock this feature.",
         );
         if (data.companyUrl) setCompanyUrl(data.companyUrl);
+        try {
+          window.sessionStorage.setItem(
+            "rl_webmail_license_active",
+            active ? "1" : "0",
+          );
+        } catch {
+          /* ignore */
+        }
       } catch {
-        setLicenseActive(false);
-        setLicenseMessage(
-          "RamerLabs Webmail Pro is not active. Please get a license key at ramerlabs.com to unlock this feature.",
-        );
+        // Keep cached/previous state — do not flash the lock wall on a blip
+        setLicenseActive((prev) => (prev === null ? true : prev));
       }
     })();
   }, []);
 
   async function handleLogout() {
+    try {
+      window.sessionStorage.removeItem("rl_webmail_license_active");
+    } catch {
+      /* ignore */
+    }
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
@@ -130,7 +154,8 @@ export function WebmailShell({
     }
   }
 
-  const featuresLocked = licenseActive !== true && active !== "admin";
+  // Only lock when license is known inactive — never while loading (null)
+  const featuresLocked = licenseActive === false && active !== "admin";
 
   const allLinks: {
     key: NavKey;
@@ -207,7 +232,7 @@ export function WebmailShell({
         <nav className="mb-3 flex flex-col gap-0.5">
           {links.map(({ key, href, label, icon: Icon }) => {
             const isActive = active === key;
-            const locked = licenseActive !== true && key !== "admin";
+            const locked = licenseActive === false && key !== "admin";
             return (
               <Link
                 key={key}

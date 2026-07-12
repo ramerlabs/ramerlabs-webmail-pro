@@ -99,6 +99,20 @@ export async function isLicenseActive(): Promise<boolean> {
   }
 
   const result = await validateLicense(state.licenseKey, state.installId);
+
+  // Network / server glitches must not wipe an already-activated license
+  if (
+    !result.success &&
+    (result.code === "network_error" || result.code === "http_error")
+  ) {
+    await saveLicenseState({
+      ...state,
+      lastValidatedAt: new Date().toISOString(),
+      lastMessage: result.message || "Could not reach license server (kept active)",
+    });
+    return true;
+  }
+
   const next = await saveLicenseState({
     ...state,
     activated: Boolean(result.success),
