@@ -1,14 +1,23 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { LandingPage } from "@/components/landing/landing-page";
 import { getSession } from "@/lib/session";
 
+export const metadata: Metadata = {
+  title: "RamerLabs Webmail Pro",
+  description:
+    "Modern branded webmail for your domain — cPanel mailboxes, inbox, contacts, calendar, and licensed admin control.",
+};
+
 export default async function HomePage() {
-  let loggedIn = false;
   try {
     const session = await getSession();
-    loggedIn = Boolean(session.isLoggedIn && session.email);
+    if (session.isLoggedIn && session.email) {
+      redirect(session.isAppAdmin ? "/admin" : "/mail");
+    }
   } catch {
-    loggedIn = false;
+    /* first boot without session secret */
   }
 
-  redirect(loggedIn ? "/mail" : "/login");
+  return <LandingPage />;
 }
