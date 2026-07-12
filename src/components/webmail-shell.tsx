@@ -80,13 +80,30 @@ export function WebmailShell({
         if (res.ok) {
           setIsAdmin(Boolean(data.isAdmin) || isAdminProp);
           setIsAppAdmin(Boolean(data.isAppAdmin));
-          setHasMailbox(data.hasMailbox !== false);
+          const mailboxOk = data.hasMailbox !== false;
+          setHasMailbox(mailboxOk);
+
+          // Admin session without IMAP — silently restore from saved secret
+          if (data.isAppAdmin && data.hasMailbox === false) {
+            const restore = await fetch("/api/auth/connect-mailbox", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            });
+            const restoreData = await restore.json().catch(() => ({}));
+            if (restore.ok && restoreData.hasMailbox) {
+              setHasMailbox(true);
+              if (active === "admin") {
+                /* stay on admin; nav will unlock */
+              }
+            }
+          }
         }
       } catch {
         /* ignore */
       }
     })();
-  }, [isAdminProp]);
+  }, [isAdminProp, active]);
 
   useEffect(() => {
     void (async () => {

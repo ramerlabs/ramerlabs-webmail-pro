@@ -5,6 +5,7 @@ import {
   ensureDefaultAppAdmin,
   verifyAppAdmin,
 } from "@/lib/app-admin";
+import { ensureAdminMailboxAccess } from "@/lib/admin-mailbox";
 import { getSession, requireAdminAccess } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -27,6 +28,7 @@ export async function GET() {
       authenticated: true,
       isAppAdmin: true,
       username: session.email,
+      hasMailbox: Boolean(session.password),
     });
   }
   const admin = await requireAdminAccess();
@@ -35,6 +37,7 @@ export async function GET() {
       authenticated: true,
       isAppAdmin: Boolean(admin.isAppAdmin),
       username: admin.email,
+      hasMailbox: Boolean(admin.password),
     });
   }
   return NextResponse.json({ authenticated: false }, { status: 401 });
@@ -63,17 +66,24 @@ export async function POST(request: Request) {
       );
     }
 
+    const mailbox = await ensureAdminMailboxAccess(
+      user.username,
+      parsed.data.password,
+    );
+
     const session = await getSession();
     session.isLoggedIn = true;
     session.isAppAdmin = true;
     session.email = user.username;
-    session.password = "";
+    session.password = mailbox.ok && mailbox.password ? mailbox.password : "";
     await session.save();
 
     return NextResponse.json({
       ok: true,
       username: user.username,
       isDefaultPassword: user.isDefaultPassword,
+      hasMailbox: Boolean(mailbox.ok && mailbox.password),
+      mailboxError: mailbox.ok ? undefined : mailbox.error,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Login failed";

@@ -241,3 +241,28 @@ export async function ensureAdminMailboxAccess(
       "Could not connect admin mailbox for IMAP.",
   };
 }
+
+/**
+ * Reattach IMAP to an installer session using the saved mailbox secret
+ * (no password prompt). Used after /admin/login and on shell mount.
+ */
+export async function restoreAdminMailboxSession(
+  email: string,
+): Promise<{ ok: boolean; password?: string; error?: string }> {
+  const normalized = email.trim().toLowerCase();
+  const stored = await loadStoredPassword();
+  if (!stored) {
+    return {
+      ok: false,
+      error: "No saved mailbox password. Enter the password once to unlock Mail.",
+    };
+  }
+  const verify = await tryImap(normalized, stored);
+  if (!verify.ok) {
+    return {
+      ok: false,
+      error: verify.error || "Saved mailbox password no longer works.",
+    };
+  }
+  return { ok: true, password: stored };
+}

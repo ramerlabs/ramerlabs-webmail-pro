@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ensureAdminMailboxAccess } from "@/lib/admin-mailbox";
+import {
+  ensureAdminMailboxAccess,
+  restoreAdminMailboxSession,
+} from "@/lib/admin-mailbox";
 import { getSession } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 const schema = z.object({
-  password: z.string().min(1, "Mailbox password is required"),
+  password: z.string().optional(),
 });
 
 /**
  * Attach IMAP credentials to an installer-admin session.
- * Creates or syncs the admin@ cPanel mailbox when needed so Mail works
- * like a normal email account.
+ * - With password: create/sync mailbox
+ * - Without password: restore from saved mailbox secret
  */
 export async function POST(request: Request) {
   try {
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -47,17 +50,19 @@ export async function POST(request: Request) {
     }
 
     const email = session.email;
-    const mailbox = await ensureAdminMailboxAccess(
-      email,
-      parsed.data.password,
-    );
+    const password = parsed.data.password?.trim() || "";
+
+    const mailbox = password
+      ? await ensureAdminMailboxAccess(email, password)
+      : await restoreAdminMailboxSession(email);
 
     if (!mailbox.ok || !mailbox.password) {
       return NextResponse.json(
         {
           error:
             mailbox.error ||
-            `Could not unlock Mail for ${email}. Check cPanel API settings and IMAP host.`,
+            `Could not unlock Mail for ${email}. Enter the mailbox password once.`,
+          needsPassword: !password,
         },
         { status: 401 },
       );
