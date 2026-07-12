@@ -91,6 +91,8 @@ export async function addPopMailbox(
     password,
     quota: String(cfg.quotaMb),
     domain,
+    // Same as cPanel UI checkbox: deliver "Client configuration settings" to the new inbox
+    send_welcome_email: "1",
   });
 
   try {
