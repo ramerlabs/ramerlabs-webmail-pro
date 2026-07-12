@@ -306,15 +306,140 @@ function decodeAddress(
 
 function snippetFromSource(source?: Buffer): string {
   if (!source) return "";
-  const raw = source.toString("utf8");
-  const bodyStart = raw.indexOf("\r\n\r\n");
-  const body = bodyStart >= 0 ? raw.slice(bodyStart + 4) : raw.slice(0, 800);
-  return extractSnippet(
-    body
-      .replace(/<[^>]+>/g, " ")
-      .replace(/=\r?\n/g, "")
-      .replace(/=[0-9A-F]{2}/gi, " "),
-  );
+  const { text, html } = parseMimeBody(source);
+  return extractSnippet(text || html || "");
+}
+
+function headerValue(headers: string, name: string): string {
+  const re = new RegExp(`^${name}:\\s*([^\\r\\n]*(?:\\r?\\n[ \\t][^\\r\\n]*)*)`, "im");
+  const match = headers.match(re);
+  return match?.[1]?.replace(/\r?\n[ \t]+/g, " ").trim() || "";
+}
+
+function decodeQuotedPrintableToBuffer(input: string): Buffer {
+  const cleaned = input.replace(/=\r?\n/g, "");
+  const bytes: number[] = [];
+  for (let i = 0; i < cleaned.length; i++) {
+    if (
+      cleaned[i] === "=" &&
+      i + 2 < cleaned.length &&
+      /^[0-9A-Fa-f]{2}$/.test(cleaned.slice(i + 1, i + 3))
+    ) {
+      bytes.push(parseInt(cleaned.slice(i + 1, i + 3), 16));
+      i += 2;
+    } else {
+      bytes.push(cleaned.charCodeAt(i) & 0xff);
+    }
+  }
+  return Buffer.from(bytes);
+}
+
+function normalizeCharset(raw: string): string {
+  const c = raw.trim().toLowerCase().replace(/['"]/g, "");
+  if (!c || c === "utf8" || c === "utf-8") return "utf-8";
+  if (c === "iso-8859-1" || c === "latin1" || c === "latin-1") return "latin1";
+  if (c === "us-ascii" || c === "ascii") return "ascii";
+  if (c === "windows-1252" || c === "cp1252") return "latin1";
+  return c;
+}
+
+function decodeBytes(buf: Buffer, charset: string): string {
+  const cs = normalizeCharset(charset);
+  try {
+    if (cs === "utf-8" || cs === "ascii" || cs === "latin1") {
+      return buf.toString(cs as BufferEncoding);
+    }
+    return new TextDecoder(cs, { fatal: false }).decode(buf);
+  } catch {
+    return buf.toString("utf-8");
+  }
+}
+
+function decodeMimePartBody(
+  body: string,
+  transferEncoding: string,
+  charset: string,
+): string {
+  const enc = transferEncoding.toLowerCase().trim();
+  let buf: Buffer;
+  if (enc === "base64") {
+    buf = Buffer.from(body.replace(/\s+/g, ""), "base64");
+  } else if (enc === "quoted-printable") {
+    buf = decodeQuotedPrintableToBuffer(body);
+  } else {
+    // 7bit / 8bit / binary — MIME source was read as binary-safe latin1 bytes
+    buf = Buffer.from(body, "binary");
+  }
+  let text = decodeBytes(buf, charset);
+  // Clean common mojibake leftovers from double-encoded UTF-8
+  text = text.replace(/\u00c2\u00a0/g, "\u00a0").replace(/\u00c2([\u0080-\u00bf])/g, "$1");
+  return text.replace(/\uFFFD/g, "");
+}
+
+function extractMimeParts(raw: string): { html: string | null; text: string | null } {
+  const boundaryMatch = raw.match(/boundary="?([^";\r\n]+)"?/i);
+  if (!boundaryMatch) {
+    const headerEnd = raw.indexOf("\r\n\r\n");
+    const headers = headerEnd >= 0 ? raw.slice(0, headerEnd) : "";
+    const body = headerEnd >= 0 ? raw.slice(headerEnd + 4) : raw;
+    const ctype = headerValue(headers, "Content-Type") || "text/plain";
+    const cte = headerValue(headers, "Content-Transfer-Encoding") || "7bit";
+    const charsetMatch = ctype.match(/charset\s*=\s*"?([^";\s]+)"?/i);
+    const charset = charsetMatch?.[1] || "utf-8";
+    const decoded = decodeMimePartBody(body, cte, charset);
+    if (/text\/html/i.test(ctype) || /<html[\s>]/i.test(decoded)) {
+      return { html: decoded, text: null };
+    }
+    return { html: null, text: decoded };
+  }
+
+  const boundary = boundaryMatch[1];
+  const parts = raw.split(new RegExp(`--${escapeRegExp(boundary)}(?:--)?`));
+  let html: string | null = null;
+  let text: string | null = null;
+
+  for (const part of parts) {
+    if (!part || part === "--" || part.trim() === "") continue;
+    const headerEnd = part.indexOf("\r\n\r\n");
+    if (headerEnd < 0) continue;
+    const headers = part.slice(0, headerEnd);
+    const body = part.slice(headerEnd + 4).replace(/\r?\n--\s*$/, "");
+    const ctype = headerValue(headers, "Content-Type");
+    if (!ctype || /multipart\//i.test(ctype)) continue;
+    const cte = headerValue(headers, "Content-Transfer-Encoding") || "7bit";
+    const charsetMatch = ctype.match(/charset\s*=\s*"?([^";\s]+)"?/i);
+    const charset = charsetMatch?.[1] || "utf-8";
+    const decoded = decodeMimePartBody(body, cte, charset);
+
+    if (/text\/html/i.test(ctype) && !html) html = decoded.trim();
+    else if (/text\/plain/i.test(ctype) && !text) text = decoded.trim();
+  }
+
+  return { html, text };
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseMimeBody(
+  source: Buffer | string,
+): { html: string | null; text: string | null } {
+  // Keep raw MIME as latin1 so QP/base64 byte sequences stay intact
+  const raw =
+    typeof source === "string"
+      ? source
+      : source.toString("latin1");
+
+  let { html, text } = extractMimeParts(raw);
+
+  if (!html && !text) {
+    const bodyStart = raw.indexOf("\r\n\r\n");
+    const body = bodyStart >= 0 ? raw.slice(bodyStart + 4) : raw;
+    text = decodeMimePartBody(body, "7bit", "utf-8");
+  }
+
+  return { html, text };
 }
 
 export async function fetchLatestEmails(
@@ -388,38 +513,6 @@ export async function fetchLatestEmails(
   });
 }
 
-function parseMimeBody(raw: string): { html: string | null; text: string | null } {
-  const htmlMatch = raw.match(
-    /Content-Type:\s*text\/html[\s\S]*?\r?\n\r?\n([\s\S]*?)(?:\r?\n--|\r?\n\r?\nContent-Type:|$)/i,
-  );
-  const textMatch = raw.match(
-    /Content-Type:\s*text\/plain[\s\S]*?\r?\n\r?\n([\s\S]*?)(?:\r?\n--|\r?\n\r?\nContent-Type:|$)/i,
-  );
-
-  let html = htmlMatch?.[1]?.trim() || null;
-  let text = textMatch?.[1]?.trim() || null;
-
-  if (!html && !text) {
-    if (/<html[\s>]/i.test(raw) || /<body[\s>]/i.test(raw)) {
-      html = raw;
-    } else {
-      const bodyStart = raw.indexOf("\r\n\r\n");
-      text = bodyStart >= 0 ? raw.slice(bodyStart + 4) : raw;
-    }
-  }
-
-  // Soft-decode quoted-printable for display
-  const qp = (s: string) =>
-    s.replace(/=\r?\n/g, "").replace(/=([0-9A-F]{2})/gi, (_, h) =>
-      String.fromCharCode(parseInt(h, 16)),
-    );
-
-  if (html) html = qp(html);
-  if (text) text = qp(text);
-
-  return { html, text };
-}
-
 export async function fetchEmailByUid(
   email: string,
   password: string,
@@ -445,8 +538,7 @@ export async function fetchEmailByUid(
     const from = decodeAddress(msg.envelope?.from);
     const to = decodeAddress(msg.envelope?.to);
     const cc = decodeAddress(msg.envelope?.cc);
-    const raw = msg.source?.toString("utf8") || "";
-    const { html, text } = parseMimeBody(raw);
+    const { html, text } = parseMimeBody(msg.source || Buffer.alloc(0));
 
     try {
       await client.messageFlagsAdd({ uid }, ["\\Seen"], { uid: true });
