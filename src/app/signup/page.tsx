@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { SignupForm } from "@/components/auth/signup-form";
 import { hydrateProcessEnvFromConfig } from "@/lib/app-config";
 import { getPublicCaptchaConfig } from "@/lib/captcha";
-import { getMailDomain, getMailDomains } from "@/lib/env";
+import { getMailDomain } from "@/lib/env";
 import { getSession } from "@/lib/session";
 
 export default async function SignupPage() {
@@ -23,19 +23,12 @@ export default async function SignupPage() {
   }
 
   let domain = "mydomain.com";
-  let domains: string[] = [domain];
   try {
     domain = getMailDomain();
-    domains = getMailDomains();
   } catch {
     domain = process.env.MAIL_DOMAIN || "mydomain.com";
-    domains = [domain];
   }
   const captcha = getPublicCaptchaConfig();
-  const domainHint =
-    domains.length > 1
-      ? `one of your domains (${domains.map((d) => `@${d}`).join(", ")})`
-      : `@${domain}`;
 
   return (
     <div className="auth-shell">
@@ -58,8 +51,7 @@ export default async function SignupPage() {
           Create your mailbox
         </h1>
         <p className="mb-6 text-sm text-[var(--muted)]">
-          Provision a real {domainHint} address. Signup is protected against
-          bots.
+          Provision a real mailbox address. Signup is protected against bots.
         </p>
 
         <SignupForm
