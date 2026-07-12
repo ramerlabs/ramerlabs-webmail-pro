@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyImapCredentials } from "@/lib/imap";
+import { ensureAdminMailboxAccess } from "@/lib/admin-mailbox";
 import { getSession } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -10,8 +10,9 @@ const schema = z.object({
 });
 
 /**
- * Attach IMAP credentials to an installer-admin session so Mail / send works
- * without logging out. Email stays the signed-in admin address.
+ * Attach IMAP credentials to an installer-admin session.
+ * Creates or syncs the admin@ cPanel mailbox when needed so Mail works
+ * like a normal email account.
  */
 export async function POST(request: Request) {
   try {
@@ -46,28 +47,30 @@ export async function POST(request: Request) {
     }
 
     const email = session.email;
-    const password = parsed.data.password;
-    const verify = await verifyImapCredentials(email, password);
+    const mailbox = await ensureAdminMailboxAccess(
+      email,
+      parsed.data.password,
+    );
 
-    if (!verify.ok) {
+    if (!mailbox.ok || !mailbox.password) {
       return NextResponse.json(
         {
           error:
-            verify.error ||
-            `IMAP login failed for ${email}. Create this mailbox in cPanel (or use its real password), then try again.`,
+            mailbox.error ||
+            `Could not unlock Mail for ${email}. Check cPanel API settings and IMAP host.`,
         },
         { status: 401 },
       );
     }
 
-    session.password = password;
+    session.password = mailbox.password;
     await session.save();
 
     return NextResponse.json({
       ok: true,
       hasMailbox: true,
       email,
-      message: "Mailbox connected. Mail and compose are available.",
+      message: "Mailbox ready. Opening Mail like a normal account.",
     });
   } catch (err) {
     const message =

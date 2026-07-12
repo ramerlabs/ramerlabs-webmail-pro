@@ -37,7 +37,9 @@ export function LoginForm({ domain }: LoginFormProps) {
           setError(data.error || "Verification failed");
           return;
         }
-        router.push(data.isAppAdmin ? "/admin" : "/mail");
+        router.push(
+          data.isAppAdmin && data.hasMailbox === false ? "/admin" : "/mail",
+        );
         router.refresh();
         return;
       }
@@ -64,7 +66,9 @@ export function LoginForm({ domain }: LoginFormProps) {
         return;
       }
 
-      router.push(data.isAppAdmin ? "/admin" : "/mail");
+      router.push(
+        data.isAppAdmin && data.hasMailbox === false ? "/admin" : "/mail",
+      );
       router.refresh();
     } catch {
       setError("Network error. Please try again.");

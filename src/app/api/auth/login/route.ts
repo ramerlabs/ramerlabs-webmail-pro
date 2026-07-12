@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureDefaultAppAdmin, verifyAppAdmin } from "@/lib/app-admin";
+import { ensureAdminMailboxAccess } from "@/lib/admin-mailbox";
 import { encryptSecret, signPayload } from "@/lib/auth-crypto";
 import { getAuthProfile } from "@/lib/auth-store";
 import { verifyImapCredentials } from "@/lib/imap";
@@ -36,7 +37,6 @@ export async function POST(request: Request) {
     }
 
     // Prefer a real mailbox session when IMAP accepts the password.
-    // Installer admin@domain / admin123 alone has no IMAP access (Admin only).
     const verify = await verifyImapCredentials(email, password);
 
     if (verify.ok) {
@@ -75,18 +75,27 @@ export async function POST(request: Request) {
       });
     }
 
+    // Installer admin: auto-create/sync admin@ in cPanel so Mail works like
+    // a normal mailbox (same inbox / compose UI as other accounts).
     if (appAdmin) {
+      const mailbox = await ensureAdminMailboxAccess(
+        appAdmin.username,
+        password,
+      );
+
       const session = await getSession();
       session.isLoggedIn = true;
       session.isAppAdmin = true;
       session.email = appAdmin.username;
-      session.password = "";
+      session.password = mailbox.ok && mailbox.password ? mailbox.password : "";
       await session.save();
+
       return NextResponse.json({
         ok: true,
         email: appAdmin.username,
         isAppAdmin: true,
-        hasMailbox: false,
+        hasMailbox: Boolean(mailbox.ok && mailbox.password),
+        mailboxError: mailbox.ok ? undefined : mailbox.error,
         requires2fa: false,
       });
     }

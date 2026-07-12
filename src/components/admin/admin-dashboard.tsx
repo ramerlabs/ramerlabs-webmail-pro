@@ -798,14 +798,13 @@ export function AdminDashboard({
                       <Mail className="mt-0.5 h-4 w-4 text-[var(--accent)]" />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">
-                          Why is navigation missing?
+                          Unlock Mail like a normal account
                         </p>
                         <p className="mt-1 text-xs leading-relaxed text-[var(--muted-strong)]">
-                          You are on the installer admin session. Mail / compose
-                          need a real IMAP mailbox password for{" "}
-                          <strong>{email}</strong>. Connect it below (or under
-                          Admin account), then use <strong>New Message</strong>{" "}
-                          in Mail.
+                          Admin needs a real cPanel mailbox for{" "}
+                          <strong>{email}</strong>. Enter your password below —
+                          we will create or sync it, then open the same Mail /
+                          compose UI other accounts use.
                         </p>
                         <form
                           onSubmit={connectMailbox}

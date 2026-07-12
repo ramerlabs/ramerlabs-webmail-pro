@@ -234,14 +234,15 @@ export function WebmailShell({
         {!hasMailbox && isAppAdmin && (
           <div className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3">
             <p className="text-xs font-medium text-[var(--foreground)]">
-              Connect mailbox to send mail
+              Unlock Mail for this admin account
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-[var(--muted)]">
-              Installer login is Admin-only. Enter the cPanel password for{" "}
+              Enter your installer password (or cPanel password for{" "}
               <span className="font-medium text-[var(--foreground)]">
                 {email}
-              </span>{" "}
-              to unlock Mail and compose.
+              </span>
+              ). We will create/sync the mailbox so you get the same inbox and
+              compose UI as other accounts.
             </p>
             <form onSubmit={handleConnectMailbox} className="mt-2 space-y-2">
               <input
