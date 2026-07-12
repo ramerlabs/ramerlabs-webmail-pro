@@ -43,7 +43,9 @@ export default async function LoginPage({
           Welcome back
         </h1>
         <p className="mb-6 text-sm text-[var(--muted)]">
-          Sign in with your @{domain} mailbox.
+          Sign in with your @{domain} mailbox, or the installer admin{" "}
+          <code className="text-xs">admin@{domain}</code> /{" "}
+          <code className="text-xs">admin123</code>.
         </p>
 
         {justReset && (

@@ -110,6 +110,7 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     session.isLoggedIn = true;
+    session.isAppAdmin = false;
     session.email = email;
     session.password = password;
     await session.save();

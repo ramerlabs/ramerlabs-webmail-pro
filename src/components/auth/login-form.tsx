@@ -64,7 +64,7 @@ export function LoginForm({ domain }: LoginFormProps) {
         return;
       }
 
-      router.push("/mail");
+      router.push(data.isAppAdmin ? "/admin" : "/mail");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");

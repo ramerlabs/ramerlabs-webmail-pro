@@ -9,8 +9,8 @@ A licensed Next.js (App Router) webmail product for your domain — Roundcube-st
 This is a **RamerLabs licensed product**. After purchase:
 
 1. Deploy the app (Vercel or Node host)
-2. Open `/admin/login`
-3. Sign in with the default installer account: **`admin` / `admin123`** (change immediately)
+2. Open `/login` (or `/admin/login`)
+3. Sign in with **`admin@{your-mail-domain}`** / **`admin123`** (change immediately)
 4. Open **License**, paste your key, and activate
 5. Open **Install settings** and enter mail/cPanel/IMAP/SMTP/captcha/Redis values (no `.env` editing required for most hosts)
 
@@ -34,7 +34,7 @@ Support: [support@ramerlabs.com](mailto:support@ramerlabs.com) · [ramerlabs.com
 - **Expenses** — Track spending by category with a currency selector
 
 ### Security & admin
-- **Installer admin** — `/admin/login` with default `admin` / `admin123` on new installs
+- **Installer admin** — `admin@{MAIL_DOMAIN}` / `admin123` on new installs (main `/login` or `/admin/login`)
 - **License key** — Activate / check / deactivate from Admin → License
 - **Install settings UI** — Mail domain, cPanel, IMAP/SMTP, captcha, Upstash Redis, and more (replaces most `.env` editing)
 - **Recovery email** — Required on signup; used for password reset links
@@ -51,7 +51,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000/admin/login](http://localhost:3000/admin/login) and sign in with `admin` / `admin123`.
+Open [http://localhost:3000/login](http://localhost:3000/login) and sign in with `admin@yourdomain.com` / `admin123` (uses your `MAIL_DOMAIN`).
 
 Optional: copy `.env.local.example` to `.env.local` if you prefer env-based defaults (Admin → Install settings overrides/persists them). On Vercel, set **Upstash Redis** URL + token in the host environment so settings and license state survive deploys.
 

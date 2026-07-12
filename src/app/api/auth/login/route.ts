@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureDefaultAppAdmin, verifyAppAdmin } from "@/lib/app-admin";
 import { encryptSecret, signPayload } from "@/lib/auth-crypto";
 import { getAuthProfile } from "@/lib/auth-store";
 import { verifyImapCredentials } from "@/lib/imap";
@@ -20,6 +21,24 @@ export async function POST(request: Request) {
     }
 
     const { email, password } = parsed.data;
+
+    // Installer admin: admin@{MAIL_DOMAIN} / admin123 (no IMAP mailbox required)
+    await ensureDefaultAppAdmin();
+    const appAdmin = await verifyAppAdmin(email, password);
+    if (appAdmin) {
+      const session = await getSession();
+      session.isLoggedIn = true;
+      session.isAppAdmin = true;
+      session.email = appAdmin.username;
+      session.password = "";
+      await session.save();
+      return NextResponse.json({
+        ok: true,
+        email: appAdmin.username,
+        isAppAdmin: true,
+        requires2fa: false,
+      });
+    }
 
     const { isEmailBlocked, BLOCKED_EMAIL_MESSAGE } = await import(
       "@/lib/admin-settings"
@@ -60,11 +79,17 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     session.isLoggedIn = true;
+    session.isAppAdmin = false;
     session.email = email;
     session.password = password;
     await session.save();
 
-    return NextResponse.json({ ok: true, email, requires2fa: false });
+    return NextResponse.json({
+      ok: true,
+      email,
+      isAppAdmin: false,
+      requires2fa: false,
+    });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Login failed unexpectedly";

@@ -649,7 +649,9 @@ export function AdminDashboard({
                   {isAppAdmin
                     ? " (installer account)"
                     : " (mailbox admin)"}
-                  . Default installer credentials are admin / admin123 — change
+                  . Default installer login is{" "}
+                  <code className="text-xs">admin@your-domain</code> /{" "}
+                  <code className="text-xs">admin123</code> — change
                   them after first login.
                 </p>
                 {isAppAdmin && (

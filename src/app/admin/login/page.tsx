@@ -1,7 +1,11 @@
 import { Shield } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AdminLoginForm } from "@/components/admin/admin-login-form";
-import { ensureDefaultAppAdmin } from "@/lib/app-admin";
+import {
+  ensureDefaultAppAdmin,
+  getDefaultAdminEmail,
+  getDefaultAdminPassword,
+} from "@/lib/app-admin";
 import { requireAdminAccess } from "@/lib/session";
 
 export default async function AdminLoginPage() {
@@ -10,6 +14,9 @@ export default async function AdminLoginPage() {
   if (session) {
     redirect("/admin");
   }
+
+  const adminEmail = getDefaultAdminEmail();
+  const defaultPassword = getDefaultAdminPassword();
 
   return (
     <div className="auth-shell">
@@ -32,12 +39,12 @@ export default async function AdminLoginPage() {
           Admin sign in
         </h1>
         <p className="mb-6 text-sm text-[var(--muted)]">
-          New installs use <code className="text-xs">admin</code> /{" "}
-          <code className="text-xs">admin123</code>. Change the password after
-          first login.
+          New installs use <code className="text-xs">{adminEmail}</code> /{" "}
+          <code className="text-xs">{defaultPassword}</code>. You can also sign
+          in from the main login page. Change the password after first login.
         </p>
 
-        <AdminLoginForm />
+        <AdminLoginForm defaultEmail={adminEmail} />
       </div>
     </div>
   );

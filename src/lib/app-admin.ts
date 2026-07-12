@@ -2,9 +2,10 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { Redis } from "@upstash/redis";
+import { getMailDomain } from "@/lib/env";
 
 const ADMIN_KEY = "webmail:app:admin-user";
-const DEFAULT_USERNAME = "admin";
+const DEFAULT_LOCAL_PART = "admin";
 const DEFAULT_PASSWORD = "admin123";
 
 export interface AppAdminUser {
@@ -45,6 +46,38 @@ export function verifyPassword(password: string, stored: string): boolean {
   }
 }
 
+/** Default installer login: admin@{MAIL_DOMAIN}. */
+export function getDefaultAdminEmail(): string {
+  const domain = (getMailDomain() || "yourdomain.com").toLowerCase().trim();
+  return `${DEFAULT_LOCAL_PART}@${domain}`;
+}
+
+export function getDefaultAdminPassword(): string {
+  return DEFAULT_PASSWORD;
+}
+
+function normalizeLoginId(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+/** Accept admin, admin@domain, or matching stored username. */
+export function loginMatchesAdmin(
+  input: string,
+  storedUsername: string,
+): boolean {
+  const a = normalizeLoginId(input);
+  const b = normalizeLoginId(storedUsername);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  const domain = (getMailDomain() || "").toLowerCase();
+  const defaultEmail = getDefaultAdminEmail().toLowerCase();
+  const aliases = new Set<string>([b, defaultEmail, DEFAULT_LOCAL_PART]);
+  if (domain) aliases.add(`${DEFAULT_LOCAL_PART}@${domain}`);
+  if (b.includes("@")) aliases.add(b.split("@")[0]!);
+  return aliases.has(a);
+}
+
 async function readLocal(): Promise<AppAdminUser | null> {
   try {
     const raw = await readFile(localPath(), "utf8");
@@ -59,23 +92,46 @@ async function writeLocal(user: AppAdminUser): Promise<void> {
   await writeFile(localPath(), JSON.stringify(user, null, 2), "utf8");
 }
 
-export async function getAppAdminUser(): Promise<AppAdminUser> {
+async function loadStored(): Promise<AppAdminUser | null> {
   const redis = getRedis();
   if (redis) {
     const value = await redis.get<AppAdminUser>(ADMIN_KEY);
     if (value?.username && value.passwordHash) return value;
-  } else if (process.env.VERCEL) {
+    return null;
+  }
+  if (process.env.VERCEL) {
     const mem = (globalThis as { __webmailAppAdmin?: AppAdminUser })
       .__webmailAppAdmin;
     if (mem?.username && mem.passwordHash) return mem;
-  } else {
-    const local = await readLocal();
-    if (local?.username && local.passwordHash) return local;
+    return null;
+  }
+  return readLocal();
+}
+
+export async function getAppAdminUser(): Promise<AppAdminUser> {
+  const desired = getDefaultAdminEmail();
+  const existing = await loadStored();
+
+  if (existing?.username && existing.passwordHash) {
+    // Migrate legacy "admin" → admin@domain while still on default password
+    if (
+      existing.isDefaultPassword &&
+      normalizeLoginId(existing.username) === DEFAULT_LOCAL_PART &&
+      normalizeLoginId(desired) !== DEFAULT_LOCAL_PART
+    ) {
+      const migrated: AppAdminUser = {
+        ...existing,
+        username: desired,
+      };
+      await saveAppAdminUser(migrated);
+      return migrated;
+    }
+    return existing;
   }
 
   const now = new Date().toISOString();
   const user: AppAdminUser = {
-    username: DEFAULT_USERNAME,
+    username: desired,
     passwordHash: hashPassword(DEFAULT_PASSWORD),
     createdAt: now,
     updatedAt: now,
@@ -93,7 +149,6 @@ export async function saveAppAdminUser(user: AppAdminUser): Promise<void> {
     return;
   }
   if (process.env.VERCEL) {
-    // Without Redis on Vercel, keep in memory for this instance
     (globalThis as { __webmailAppAdmin?: AppAdminUser }).__webmailAppAdmin =
       next;
     return;
@@ -110,9 +165,7 @@ export async function verifyAppAdmin(
   password: string,
 ): Promise<AppAdminUser | null> {
   const user = await getAppAdminUser();
-  if (user.username.toLowerCase() !== username.trim().toLowerCase()) {
-    return null;
-  }
+  if (!loginMatchesAdmin(username, user.username)) return null;
   if (!verifyPassword(password, user.passwordHash)) return null;
   return user;
 }

@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
-export function AdminLoginForm() {
+export function AdminLoginForm({ defaultEmail }: { defaultEmail: string }) {
   const router = useRouter();
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState(defaultEmail);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ export function AdminLoginForm() {
     <form onSubmit={onSubmit} className="space-y-5">
       <div>
         <label className="mb-1.5 block text-sm font-medium" htmlFor="username">
-          Username
+          Admin email
         </label>
         <input
           id="username"
