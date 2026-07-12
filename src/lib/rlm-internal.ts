@@ -5,18 +5,13 @@ function joinParts(parts: string[]): string {
   return parts.join("");
 }
 
-/** License server base URL (obfuscated). */
+/** License server base URL (obfuscated). Always ramerlabs.com — no plugins subdomain. */
 export function getLicenseServerUrl(): string {
-  // Prefer env override for local LM testing only; production uses split URL.
-  const override = process.env.RLM_LICENSE_SERVER?.trim();
-  if (override) return override.replace(/\/$/, "");
   return joinParts(["https://", "ramerlabs", ".com"]);
 }
 
 /** Product slug for License Manager (not shown in customer UI). */
 export function getLicenseProductSlug(): string {
-  const override = process.env.RLM_PRODUCT_SLUG?.trim();
-  if (override) return override;
   return joinParts(["ramerlabs-", "webmail-", "pro"]);
 }
 
