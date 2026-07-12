@@ -392,8 +392,19 @@ export function AdminDashboard({
         mailDomains: list.join(", "),
         mailDomain: c.mailDomain || list[0] || "",
       }));
+      const fixed = Array.isArray(data.routingFixed)
+        ? data.routingFixed.length
+        : 0;
+      const failed = Array.isArray(data.routingFailed)
+        ? data.routingFailed.length
+        : 0;
       setMessage(
-        `Loaded ${list.length} domain(s) from cPanel. Review, then Save install settings.`,
+        `Loaded ${list.length} domain(s) from cPanel` +
+          (fixed
+            ? ` and set Local mail routing on ${fixed}`
+            : "") +
+          (failed ? ` (${failed} routing update(s) failed)` : "") +
+          `. Review, then Save install settings.`,
       );
     } catch {
       setError("Network error loading domains");
@@ -679,7 +690,9 @@ export function AdminDashboard({
                   />
                   <p className="mt-1.5 text-xs text-[var(--muted)]">
                     Comma or newline separated. Users pick one of these at
-                    signup. Primary domain is always included.
+                    signup. Primary domain is always included. Loading from
+                    cPanel also sets each domain to Local Mail Exchanger so
+                    outbound SMTP works (not only the primary domain).
                   </p>
                   <button
                     type="button"

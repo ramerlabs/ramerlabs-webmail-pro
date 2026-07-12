@@ -83,24 +83,25 @@ export async function addPopMailbox(
   const domain = (domainOverride || cfg.domain).trim().toLowerCase();
   const email = `${localPart}@${domain}`;
 
-  const params = new URLSearchParams({
+  const authHeader = `cpanel ${cfg.username}:${cfg.apiToken}`;
+  const endpoint = `https://${cfg.host}:${cfg.port}/execute/Email/add_pop`;
+  // POST so special characters in passwords are not mangled by the query string
+  const body = new URLSearchParams({
     email: localPart,
     password,
     quota: String(cfg.quotaMb),
     domain,
   });
 
-  // Prefer HTTPS UAPI execute endpoint
-  const url = `https://${cfg.host}:${cfg.port}/execute/Email/add_pop?${params.toString()}`;
-  const authHeader = `cpanel ${cfg.username}:${cfg.apiToken}`;
-
   try {
-    const res = await fetch(url, {
-      method: "GET",
+    const res = await fetch(endpoint, {
+      method: "POST",
       headers: {
         Authorization: authHeader,
         Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
+      body: body.toString(),
       cache: "no-store",
     });
 
@@ -121,6 +122,10 @@ export async function addPopMailbox(
         friendlyCpanelError(res.status, text);
       return { ok: false, error: message, raw: json };
     }
+
+    // Addon domains often default to Remote routing — SMTP then rejects
+    // "Sender verify failed" even though the mailbox exists.
+    await setEmailRoutingLocal(domain);
 
     return { ok: true, email, raw: json };
   } catch (err) {
@@ -491,5 +496,47 @@ export async function listCpanelMailDomains(): Promise<{
 
   const domains = [...collected].sort((a, b) => a.localeCompare(b));
   return { ok: true, domains };
+}
+
+/**
+ * Force Local Mail Exchanger for a domain so SMTP auth/send works for
+ * mailboxes created on this server (avoids "550 Sender verify failed").
+ * https://api.docs.cpanel.net/openapi/cpanel/operation/email-set_always_accept/
+ */
+export async function setEmailRoutingLocal(
+  domain: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const name = domain.trim().toLowerCase();
+  if (!name) return { ok: false, error: "Domain is required" };
+
+  const result = await cpanelExecute("Email", "set_always_accept", {
+    domain: name,
+    mxcheck: "local",
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error || `Failed to set local mail routing for ${name}`,
+    };
+  }
+  return { ok: true };
+}
+
+/** Best-effort: set Local routing for every signup/mail domain. */
+export async function ensureLocalEmailRoutingForDomains(
+  domains: string[],
+): Promise<{ ok: boolean; fixed: string[]; failed: { domain: string; error: string }[] }> {
+  const fixed: string[] = [];
+  const failed: { domain: string; error: string }[] = [];
+  const unique = [...new Set(domains.map((d) => d.trim().toLowerCase()).filter(Boolean))];
+
+  for (const domain of unique) {
+    const result = await setEmailRoutingLocal(domain);
+    if (result.ok) fixed.push(domain);
+    else failed.push({ domain, error: result.error || "Unknown error" });
+  }
+
+  return { ok: failed.length === 0, fixed, failed };
 }
 

@@ -7,6 +7,8 @@ import {
   saveRuntimeConfig,
   type AppRuntimeConfig,
 } from "@/lib/app-config";
+import { ensureLocalEmailRoutingForDomains } from "@/lib/cpanel";
+import { getMailDomains } from "@/lib/env";
 import { requireAdminAccess } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -76,6 +78,7 @@ export async function PUT(request: Request) {
     // Apply immediately for this process
     const map: Record<string, string> = {
       MAIL_DOMAIN: saved.mailDomain,
+      MAIL_DOMAINS: saved.mailDomains,
       NEXT_PUBLIC_APP_URL: saved.nextPublicAppUrl,
       ADMIN_EMAILS: saved.adminEmails,
       SESSION_SECRET: saved.sessionSecret,
@@ -105,9 +108,21 @@ export async function PUT(request: Request) {
       if (value) process.env[key] = value;
     }
 
+    // Fix Local mail routing for all signup domains so addon accounts can send
+    let routing: Awaited<
+      ReturnType<typeof ensureLocalEmailRoutingForDomains>
+    > | null = null;
+    try {
+      routing = await ensureLocalEmailRoutingForDomains(getMailDomains());
+    } catch {
+      /* non-fatal — config still saved */
+    }
+
     return NextResponse.json({
       ok: true,
       config: publicRuntimeConfig(saved),
+      routingFixed: routing?.fixed || [],
+      routingFailed: routing?.failed || [],
     });
   } catch (err) {
     const message =

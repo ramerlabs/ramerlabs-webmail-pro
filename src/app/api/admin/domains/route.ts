@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { hydrateProcessEnvFromConfig } from "@/lib/app-config";
-import { listCpanelMailDomains } from "@/lib/cpanel";
+import {
+  ensureLocalEmailRoutingForDomains,
+  listCpanelMailDomains,
+} from "@/lib/cpanel";
 import { requireAdminAccess } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -21,7 +24,16 @@ export async function GET() {
         { status: 502 },
       );
     }
-    return NextResponse.json({ ok: true, domains: result.domains });
+
+    // Ensure addon/parked domains can send via SMTP (Local Mail Exchanger)
+    const routing = await ensureLocalEmailRoutingForDomains(result.domains);
+
+    return NextResponse.json({
+      ok: true,
+      domains: result.domains,
+      routingFixed: routing.fixed,
+      routingFailed: routing.failed,
+    });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to list domains";
