@@ -4,15 +4,28 @@ A licensed Next.js (App Router) webmail product for your domain — Roundcube-st
 
 ![RamerLabs Webmail login](docs/login-screenshot.png)
 
-## License
+## License & admin access
 
-This is a **RamerLabs licensed product**. After purchase:
+This is a **RamerLabs licensed product**. After purchase and deploy:
 
-1. Deploy the app (Vercel or Node host)
-2. Open `/login` (or `/admin/login`)
-3. Sign in with **`admin@{your-mail-domain}`** / **`admin123`** (change immediately)
-4. Open **License**, paste your key, and activate
-5. Open **Install settings** and enter mail/cPanel/IMAP/SMTP/captcha/Redis values (no `.env` editing required for most hosts)
+### Installer admin (new installs)
+
+| | |
+| --- | --- |
+| **Email** | `admin@{MAIL_DOMAIN}` (example: `admin@yourdomain.com`) |
+| **Password** | `admin123` |
+| **Login** | `/login` or `/admin/login` |
+
+Change this password immediately under **Admin → Admin account**.
+
+You can also grant mailbox admins by setting **Admin mailbox emails** in **Install settings** (or `ADMIN_EMAILS` in the host environment). Those users open `/admin` after signing in with their mailbox.
+
+### Activate the product
+
+1. Sign in as the installer admin
+2. Open **Admin → License**, paste your key, and activate
+3. Open **Install settings** and enter mail/cPanel/IMAP/SMTP/captcha/Redis values
+4. Features stay locked until the license is active
 
 Support: [support@ramerlabs.com](mailto:support@ramerlabs.com) · [ramerlabs.com](https://ramerlabs.com)
 
@@ -34,7 +47,7 @@ Support: [support@ramerlabs.com](mailto:support@ramerlabs.com) · [ramerlabs.com
 - **Expenses** — Track spending by category with a currency selector
 
 ### Security & admin
-- **Installer admin** — `admin@{MAIL_DOMAIN}` / `admin123` on new installs (main `/login` or `/admin/login`)
+- **Installer admin** — documented in README (`admin@{MAIL_DOMAIN}` on new installs); change password after first login
 - **License key** — Activate / check / deactivate from Admin → License
 - **Install settings UI** — Mail domain, cPanel, IMAP/SMTP, captcha, Upstash Redis, and more (replaces most `.env` editing)
 - **Recovery email** — Required on signup; used for password reset links
@@ -51,7 +64,14 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000/login](http://localhost:3000/login) and sign in with `admin@yourdomain.com` / `admin123` (uses your `MAIL_DOMAIN`).
+Open [http://localhost:3000/login](http://localhost:3000/login).
+
+**First-time admin access** (see [License & admin access](#license--admin-access)):
+
+```text
+Email:    admin@yourdomain.com   # matches MAIL_DOMAIN
+Password: admin123               # change after first login
+```
 
 Optional: copy `.env.local.example` to `.env.local` if you prefer env-based defaults (Admin → Install settings overrides/persists them). On Vercel, set **Upstash Redis** URL + token in the host environment so settings and license state survive deploys.
 
