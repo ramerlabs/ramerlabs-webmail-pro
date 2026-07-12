@@ -25,7 +25,7 @@ export function AdminLoginForm({ defaultEmail }: { defaultEmail: string }) {
         setError(data.error || "Login failed");
         return;
       }
-      router.push("/admin");
+      router.push(data.hasMailbox ? "/mail" : "/admin");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
