@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LandingPage } from "@/components/landing/landing-page";
 import { getAdminSettings } from "@/lib/admin-settings";
+import { getMailDomain } from "@/lib/env";
 import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -29,5 +30,12 @@ export default async function HomePage() {
     /* show landing if settings unavailable */
   }
 
-  return <LandingPage />;
+  let domain = "yourdomain.com";
+  try {
+    domain = getMailDomain();
+  } catch {
+    domain = process.env.MAIL_DOMAIN || "yourdomain.com";
+  }
+
+  return <LandingPage domain={domain} />;
 }

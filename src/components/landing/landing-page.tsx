@@ -3,6 +3,7 @@
 import { Mail } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { LoginForm } from "@/components/auth/login-form";
 
 const testimonials = [
   {
@@ -49,7 +50,7 @@ const previewMessages = [
   },
 ];
 
-export function LandingPage() {
+export function LandingPage({ domain }: { domain: string }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -71,9 +72,9 @@ export function LandingPage() {
             </span>
           </Link>
           <div className="landing-nav-actions">
-            <Link href="/login" className="landing-link">
+            <a href="#signin" className="landing-link">
               Sign in
-            </Link>
+            </a>
             <a
               href="https://ramerlabs.com/product/ramerlabs-webmail-pro/"
               className="btn-primary landing-nav-cta"
@@ -88,29 +89,44 @@ export function LandingPage() {
 
       <main>
         <section className={`landing-hero ${ready ? "is-ready" : ""}`}>
-          <div className="landing-hero-copy">
-            <p className="landing-kicker">RamerLabs</p>
-            <h1 className="landing-title">Your domain. Your webmail.</h1>
-            <p className="landing-lede">
-              Modern mail for @yourdomain — inbox, contacts, and admin control
-              without the Roundcube look.
-            </p>
-            <div className="landing-cta-row">
-              <a
-                href="https://ramerlabs.com/product/ramerlabs-webmail-pro/"
-                className="btn-primary landing-cta-primary"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Get a lifetime license
-              </a>
-              <Link href="/login" className="btn-secondary landing-cta-secondary">
-                Sign in to your install
-              </Link>
+          <div className="landing-hero-top">
+            <div className="landing-hero-copy">
+              <p className="landing-kicker">RamerLabs</p>
+              <h1 className="landing-title">Your domain. Your webmail.</h1>
+              <p className="landing-lede">
+                Modern mail for @{domain} — inbox, contacts, and admin control
+                without the Roundcube look.
+              </p>
+              <div className="landing-cta-row">
+                <a
+                  href="https://ramerlabs.com/product/ramerlabs-webmail-pro/"
+                  className="btn-primary landing-cta-primary"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Get a lifetime license
+                </a>
+                <a href="#signin" className="btn-secondary landing-cta-secondary">
+                  Sign in below
+                </a>
+              </div>
+            </div>
+
+            <div id="signin" className="landing-signin">
+              <div className="landing-signin-panel">
+                <h2 className="landing-signin-title">Sign in</h2>
+                <p className="landing-signin-lede">
+                  Manage your @{domain} mailbox or admin account.
+                </p>
+                <LoginForm domain={domain} />
+              </div>
             </div>
           </div>
 
-          <div className="landing-hero-visual" aria-label="Webmail product preview">
+          <div
+            className="landing-hero-visual"
+            aria-label="Webmail product preview"
+          >
             <div className="landing-preview">
               <aside className="landing-preview-rail">
                 <div className="landing-preview-brand">
@@ -147,7 +163,7 @@ export function LandingPage() {
                 <p className="landing-preview-reader-label">Reading</p>
                 <h3>Q3 invoice ready for review</h3>
                 <p className="landing-preview-reader-meta">
-                  Maya Chen · you@yourdomain.com
+                  Maya Chen · you@{domain}
                 </p>
                 <p className="landing-preview-reader-body">
                   Attached is the updated invoice for the coastal route. Once
@@ -167,7 +183,7 @@ export function LandingPage() {
           <ul className="landing-feature-list">
             <li>
               <strong>Mailbox signup</strong>
-              <span>Captcha-protected accounts on @yourdomain</span>
+              <span>Captcha-protected accounts on @{domain}</span>
             </li>
             <li>
               <strong>Full webmail</strong>
