@@ -104,6 +104,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const { findMailboxUsingRecoveryEmail } = await import("@/lib/auth-store");
+    const takenBy = await findMailboxUsingRecoveryEmail(recoveryEmail, email);
+    if (takenBy) {
+      return NextResponse.json(
+        {
+          error:
+            "That recovery email is already used by another mailbox. Each recovery address can protect only one account.",
+        },
+        { status: 409 },
+      );
+    }
+
     const captcha = await verifyCaptcha(captchaToken, request);
     if (!captcha.ok) {
       return NextResponse.json(

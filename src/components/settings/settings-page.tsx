@@ -409,6 +409,7 @@ export function SettingsPage({ email }: { email: string }) {
                   </div>
                   <p className="mt-1.5 text-xs text-[var(--muted)]">
                     Password reset links are sent here — not to this mailbox.
+                    Each recovery address can protect only one mailbox.
                   </p>
                 </div>
 

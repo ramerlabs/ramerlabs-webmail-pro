@@ -79,6 +79,22 @@ export async function PUT(request: Request) {
           { status: 400 },
         );
       }
+      const { findMailboxUsingRecoveryEmail } = await import(
+        "@/lib/auth-store"
+      );
+      const takenBy = await findMailboxUsingRecoveryEmail(
+        parsed.data.recoveryEmail,
+        session.email,
+      );
+      if (takenBy) {
+        return NextResponse.json(
+          {
+            error:
+              "That recovery email is already used by another mailbox. Each recovery address can protect only one account.",
+          },
+          { status: 409 },
+        );
+      }
       await upsertAuthProfile(session.email, {
         recoveryEmail: parsed.data.recoveryEmail,
       });

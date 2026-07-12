@@ -284,7 +284,8 @@ export function SignupForm({
           disabled={!captchaReady}
         />
         <p className="mt-1.5 text-xs text-[var(--muted)]">
-          Used for password resets. Must be different from this mailbox.
+          Used for password resets. Must be different from this mailbox, and
+          can only be used by one account.
         </p>
       </div>
 

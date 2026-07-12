@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { hashToken, signPayload } from "@/lib/auth-crypto";
-import { findAuthProfileForReset } from "@/lib/auth-store";
+import {
+  findAuthProfileForReset,
+  markResetEmailSent,
+  wasResetEmailRecentlySent,
+} from "@/lib/auth-store";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 import { appBaseUrl, sendSystemMail } from "@/lib/system-mail";
 import { forgotPasswordSchema } from "@/lib/validations";
@@ -48,6 +52,30 @@ export async function POST(request: Request) {
     }
 
     const mailbox = profile.email.toLowerCase();
+
+    // One reset email per mailbox within the cooldown window
+    if (await wasResetEmailRecentlySent(mailbox)) {
+      return NextResponse.json({
+        ok: true,
+        message:
+          "A reset link was already sent recently. Check your recovery inbox (and spam). You can request another link in a few minutes.",
+      });
+    }
+
+    // Also rate-limit by destination recovery address
+    const recoveryLimited = rateLimit({
+      key: `forgot-to:${profile.recoveryEmail.toLowerCase()}`,
+      limit: 2,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!recoveryLimited.ok) {
+      return NextResponse.json({
+        ok: true,
+        message:
+          "A reset link was already sent recently. Check your recovery inbox (and spam).",
+      });
+    }
+
     const token = signPayload(
       {
         type: "reset",
@@ -84,6 +112,8 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
+
+    await markResetEmailSent(mailbox);
 
     return NextResponse.json(generic);
   } catch (err) {
