@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useState } from "react";
 
-const PLACEMENT_ID = "cmreflbz9001gjw04x1ylhtfo";
 const SCRIPT_SRC = "https://www.lacidaweb.com/embed.js";
 const SERVE_URL = "https://www.lacidaweb.com/api/ads/serve";
 
@@ -33,15 +32,48 @@ function withVisitor(url: string, visitor: string): string {
   return `${url}${url.includes("?") ? "&" : "?"}visitor=${encodeURIComponent(visitor)}`;
 }
 
+/** Inject HTML + run any <script> tags (React dangerouslySetInnerHTML skips scripts). */
+function CustomAdHtml({ html }: { html: string }) {
+  const ref = useId().replace(/:/g, "");
+  useEffect(() => {
+    const host = document.getElementById(`custom-ad-${ref}`);
+    if (!host) return;
+    host.innerHTML = "";
+    const template = document.createElement("template");
+    template.innerHTML = html.trim();
+    const scripts: HTMLScriptElement[] = [];
+    template.content.querySelectorAll("script").forEach((old) => {
+      const script = document.createElement("script");
+      for (const attr of old.attributes) {
+        script.setAttribute(attr.name, attr.value);
+      }
+      script.text = old.textContent || "";
+      scripts.push(script);
+      old.remove();
+    });
+    host.appendChild(template.content);
+    for (const script of scripts) {
+      host.appendChild(script);
+    }
+  }, [html, ref]);
+
+  return (
+    <div id={`custom-ad-${ref}`} className="w-full overflow-hidden" />
+  );
+}
+
 /**
- * Lacidaweb textbox ad — respects admin adsEnabled toggle.
+ * Lacidaweb / custom ad slot — respects admin adsEnabled + ads code settings.
  */
 export function LacidawebAd({ className }: { className?: string }) {
   const reactId = useId().replace(/:/g, "");
-  const targetId = `lacidaweb-ad-${PLACEMENT_ID}-${reactId}`;
   const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [placementId, setPlacementId] = useState("");
+  const [customHtml, setCustomHtml] = useState("");
   const [ads, setAds] = useState<LacidaAd[] | null>(null);
   const [failed, setFailed] = useState(false);
+
+  const targetId = `lacidaweb-ad-${placementId || "slot"}-${reactId}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -49,7 +81,14 @@ export function LacidawebAd({ className }: { className?: string }) {
       try {
         const res = await fetch("/api/config/ads", { cache: "no-store" });
         const data = await res.json();
-        if (!cancelled) setEnabled(data.adsEnabled !== false);
+        if (cancelled) return;
+        setEnabled(data.adsEnabled !== false);
+        setPlacementId(
+          typeof data.placementId === "string" ? data.placementId : "",
+        );
+        setCustomHtml(
+          typeof data.customHtml === "string" ? data.customHtml : "",
+        );
       } catch {
         if (!cancelled) setEnabled(true);
       }
@@ -61,13 +100,16 @@ export function LacidawebAd({ className }: { className?: string }) {
 
   useEffect(() => {
     if (enabled !== true) return;
+    if (customHtml.trim()) return;
+    if (!placementId) return;
+
     let cancelled = false;
     const visitor = getVisitorId();
 
     async function load() {
       try {
         const params = new URLSearchParams({
-          placement: PLACEMENT_ID,
+          placement: placementId,
           count: "3",
           _: String(Date.now()),
         });
@@ -102,13 +144,13 @@ export function LacidawebAd({ className }: { className?: string }) {
         target?.removeAttribute("data-lw-mounted");
 
         document
-          .querySelectorAll(`script[data-placement="${PLACEMENT_ID}"]`)
+          .querySelectorAll(`script[data-placement="${placementId}"]`)
           .forEach((node) => node.remove());
 
         const script = document.createElement("script");
         script.src = `${SCRIPT_SRC}?t=${Date.now()}`;
         script.async = true;
-        script.dataset.placement = PLACEMENT_ID;
+        script.dataset.placement = placementId;
         script.dataset.target = targetId;
         document.body.appendChild(script);
       }
@@ -118,10 +160,18 @@ export function LacidawebAd({ className }: { className?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, targetId]);
+  }, [enabled, placementId, customHtml, targetId]);
 
   if (enabled === false) return null;
   if (enabled === null) return null;
+
+  if (customHtml.trim()) {
+    return (
+      <aside className={className} aria-label="Sponsored">
+        <CustomAdHtml html={customHtml} />
+      </aside>
+    );
+  }
 
   const visitor = typeof window !== "undefined" ? getVisitorId() : "";
 

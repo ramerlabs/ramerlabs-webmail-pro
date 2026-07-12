@@ -13,6 +13,8 @@ export const runtime = "nodejs";
 const patchSchema = z
   .object({
     adsEnabled: z.boolean().optional(),
+    adsPlacementId: z.string().optional(),
+    adsCustomHtml: z.string().optional(),
     signupEnabled: z.boolean().optional(),
     blockedEmails: z.array(z.string()).optional(),
     blockEmail: z.string().optional(),
@@ -21,13 +23,15 @@ const patchSchema = z
   .refine(
     (v) =>
       v.adsEnabled !== undefined ||
+      v.adsPlacementId !== undefined ||
+      v.adsCustomHtml !== undefined ||
       v.signupEnabled !== undefined ||
       v.blockedEmails !== undefined ||
       v.blockEmail !== undefined ||
       v.unblockEmail !== undefined,
     {
       message:
-        "Provide adsEnabled, signupEnabled, blockedEmails, blockEmail, and/or unblockEmail",
+        "Provide adsEnabled, adsPlacementId, adsCustomHtml, signupEnabled, blockedEmails, blockEmail, and/or unblockEmail",
     },
   );
 
@@ -90,6 +94,8 @@ export async function PUT(request: Request) {
 
     const settings = await saveAdminSettings({
       adsEnabled: parsed.data.adsEnabled,
+      adsPlacementId: parsed.data.adsPlacementId,
+      adsCustomHtml: parsed.data.adsCustomHtml,
       signupEnabled: parsed.data.signupEnabled,
       blockedEmails,
     });

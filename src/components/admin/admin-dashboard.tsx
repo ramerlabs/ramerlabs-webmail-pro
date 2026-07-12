@@ -78,6 +78,8 @@ export function AdminDashboard({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [adsEnabled, setAdsEnabled] = useState(true);
+  const [adsPlacementId, setAdsPlacementId] = useState("");
+  const [adsCustomHtml, setAdsCustomHtml] = useState("");
   const [signupEnabled, setSignupEnabled] = useState(true);
   const [blockedEmails, setBlockedEmails] = useState<string[]>([]);
   const [blockInput, setBlockInput] = useState("");
@@ -125,6 +127,8 @@ export function AdminDashboard({
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         setAdsEnabled(settingsData.settings?.adsEnabled !== false);
+        setAdsPlacementId(settingsData.settings?.adsPlacementId || "");
+        setAdsCustomHtml(settingsData.settings?.adsCustomHtml || "");
         setSignupEnabled(settingsData.settings?.signupEnabled !== false);
         setBlockedEmails(
           Array.isArray(settingsData.settings?.blockedEmails)
@@ -172,6 +176,8 @@ export function AdminDashboard({
         return;
       }
       setAdsEnabled(data.settings?.adsEnabled !== false);
+      setAdsPlacementId(data.settings?.adsPlacementId || "");
+      setAdsCustomHtml(data.settings?.adsCustomHtml || "");
       setSignupEnabled(data.settings?.signupEnabled !== false);
       setBlockedEmails(
         Array.isArray(data.settings?.blockedEmails)
@@ -697,10 +703,11 @@ export function AdminDashboard({
                     <div className="flex items-start gap-3">
                       <Megaphone className="mt-0.5 h-4 w-4 text-[var(--accent)]" />
                       <div>
-                        <p className="text-sm font-medium">Lacidaweb ads</p>
+                        <p className="text-sm font-medium">Ads</p>
                         <p className="mt-1 max-w-md text-xs text-[var(--muted)]">
-                          Show or hide the sponsored slot in the message reader
-                          for all users.
+                          Show or hide the sponsored slot in the message reader.
+                          Set a Lacidaweb placement ID, or paste custom HTML /
+                          embed code to replace it.
                         </p>
                       </div>
                     </div>
@@ -732,6 +739,64 @@ export function AdminDashboard({
                       </button>
                     </label>
                   </div>
+
+                  <form
+                    className="mt-5 space-y-3 border-t border-[var(--border)] pt-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void saveSettings(
+                        {
+                          adsPlacementId: adsPlacementId.trim(),
+                          adsCustomHtml: adsCustomHtml,
+                        },
+                        "Ads code saved.",
+                      );
+                    }}
+                  >
+                    <div>
+                      <label
+                        className="mb-1.5 block text-sm font-medium"
+                        htmlFor="adsPlacementId"
+                      >
+                        Lacidaweb placement ID
+                      </label>
+                      <input
+                        id="adsPlacementId"
+                        className="field-input font-mono text-sm"
+                        value={adsPlacementId}
+                        onChange={(e) => setAdsPlacementId(e.target.value)}
+                        placeholder="cmreflbz9001gjw04x1ylhtfo"
+                        disabled={settingsSaving}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className="mb-1.5 block text-sm font-medium"
+                        htmlFor="adsCustomHtml"
+                      >
+                        Custom ads HTML / embed code
+                      </label>
+                      <textarea
+                        id="adsCustomHtml"
+                        className="field-input min-h-[120px] font-mono text-xs"
+                        value={adsCustomHtml}
+                        onChange={(e) => setAdsCustomHtml(e.target.value)}
+                        placeholder={'<!-- optional: paste ad script or HTML here -->'}
+                        disabled={settingsSaving}
+                      />
+                      <p className="mt-1 text-xs text-[var(--muted)]">
+                        If this is filled, it replaces Lacidaweb. Leave empty to
+                        use the placement ID above.
+                      </p>
+                    </div>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={settingsSaving}
+                    >
+                      {settingsSaving ? "Saving…" : "Save ads code"}
+                    </button>
+                  </form>
                 </div>
 
                 <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">

@@ -6,6 +6,10 @@ import { getMailDomain } from "@/lib/env";
 
 export interface AppAdminSettings {
   adsEnabled: boolean;
+  /** Lacidaweb placement ID (or leave empty to use install-settings / env default). */
+  adsPlacementId: string;
+  /** Optional raw HTML/script embed. When set, used instead of Lacidaweb placement. */
+  adsCustomHtml: string;
   signupEnabled: boolean;
   /** Lowercased full mailbox addresses blocked from login/signup */
   blockedEmails: string[];
@@ -14,8 +18,13 @@ export interface AppAdminSettings {
 
 const SETTINGS_KEY = "webmail:admin:settings";
 
+const DEFAULT_PLACEMENT =
+  process.env.LACIDAWEB_PLACEMENT_ID || "cmreflbz9001gjw04x1ylhtfo";
+
 const defaults: AppAdminSettings = {
   adsEnabled: true,
+  adsPlacementId: DEFAULT_PLACEMENT,
+  adsCustomHtml: "",
   signupEnabled: true,
   blockedEmails: [],
   updatedAt: new Date(0).toISOString(),
@@ -76,6 +85,12 @@ function mergeSettings(
     ...value,
     signupEnabled: value.signupEnabled !== false,
     adsEnabled: value.adsEnabled !== false,
+    adsPlacementId:
+      typeof value.adsPlacementId === "string" && value.adsPlacementId.trim()
+        ? value.adsPlacementId.trim()
+        : defaults.adsPlacementId,
+    adsCustomHtml:
+      typeof value.adsCustomHtml === "string" ? value.adsCustomHtml : "",
     blockedEmails: normalizeBlockedList(value.blockedEmails),
   };
 }
@@ -123,13 +138,28 @@ export async function isEmailBlocked(email: string): Promise<boolean> {
 
 export async function saveAdminSettings(
   patch: Partial<
-    Pick<AppAdminSettings, "adsEnabled" | "signupEnabled" | "blockedEmails">
+    Pick<
+      AppAdminSettings,
+      | "adsEnabled"
+      | "adsPlacementId"
+      | "adsCustomHtml"
+      | "signupEnabled"
+      | "blockedEmails"
+    >
   >,
 ): Promise<AppAdminSettings> {
   const current = await getAdminSettings();
   const next: AppAdminSettings = {
     adsEnabled:
       patch.adsEnabled !== undefined ? patch.adsEnabled : current.adsEnabled,
+    adsPlacementId:
+      patch.adsPlacementId !== undefined
+        ? patch.adsPlacementId.trim() || defaults.adsPlacementId
+        : current.adsPlacementId,
+    adsCustomHtml:
+      patch.adsCustomHtml !== undefined
+        ? patch.adsCustomHtml
+        : current.adsCustomHtml,
     signupEnabled:
       patch.signupEnabled !== undefined
         ? patch.signupEnabled
