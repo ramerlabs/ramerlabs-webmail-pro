@@ -13,6 +13,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { WebmailShell } from "@/components/webmail-shell";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,7 @@ export function AdminDashboard({
   email: string;
   isAppAdmin?: boolean;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,6 +105,9 @@ export function AdminDashboard({
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [hasMailbox, setHasMailbox] = useState(true);
+  const [mailboxPassword, setMailboxPassword] = useState("");
+  const [mailboxBusy, setMailboxBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,6 +163,46 @@ export function AdminDashboard({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = await res.json();
+        if (res.ok) setHasMailbox(data.hasMailbox !== false);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  async function connectMailbox(e: React.FormEvent) {
+    e.preventDefault();
+    setMailboxBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/auth/connect-mailbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: mailboxPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Could not connect mailbox");
+        return;
+      }
+      setHasMailbox(true);
+      setMailboxPassword("");
+      setMessage(data.message || "Mailbox connected.");
+      router.push("/mail");
+      router.refresh();
+    } catch {
+      setError("Network error connecting mailbox");
+    } finally {
+      setMailboxBusy(false);
+    }
+  }
 
   async function saveSettings(
     patch: Record<string, unknown>,
@@ -651,6 +696,54 @@ export function AdminDashboard({
 
           {tab === "account" && (
             <div className="mx-auto max-w-3xl space-y-4">
+              {isAppAdmin && !hasMailbox && (
+                <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent-soft)] p-5">
+                  <div className="flex items-start gap-3">
+                    <Mail className="mt-0.5 h-4 w-4 text-[var(--accent)]" />
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-sm font-medium">
+                        Connect mailbox to send email
+                      </h2>
+                      <p className="mt-1 text-xs text-[var(--muted-strong)]">
+                        The installer account opens Admin only. Create{" "}
+                        <strong>{email}</strong> in cPanel (if needed), then enter
+                        that mailbox password here. Mail, compose, and the full
+                        sidebar unlock for this session.
+                      </p>
+                      <form
+                        onSubmit={connectMailbox}
+                        className="mt-4 flex max-w-md flex-col gap-2 sm:flex-row"
+                      >
+                        <input
+                          className="field-input flex-1"
+                          type="password"
+                          placeholder="cPanel mailbox password"
+                          value={mailboxPassword}
+                          onChange={(e) => setMailboxPassword(e.target.value)}
+                          required
+                        />
+                        <button
+                          type="submit"
+                          className="btn-primary sm:w-fit"
+                          disabled={mailboxBusy || !mailboxPassword}
+                        >
+                          {mailboxBusy ? "Connecting…" : "Connect mailbox"}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {isAppAdmin && hasMailbox && (
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                  <p className="text-sm font-medium">Mailbox connected</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    Open <a className="text-[var(--accent)] underline" href="/mail">Mail</a>{" "}
+                    and use <strong>New Message</strong> to send email as{" "}
+                    {email}.
+                  </p>
+                </div>
+              )}
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <h2 className="text-sm font-medium">App admin account</h2>
                 <p className="mt-1 text-xs text-[var(--muted)]">
@@ -699,6 +792,45 @@ export function AdminDashboard({
           {tab === "overview" && (
             <>
               <div className="mx-auto max-w-3xl space-y-4">
+                {isAppAdmin && !hasMailbox && (
+                  <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent-soft)] p-5">
+                    <div className="flex items-start gap-3">
+                      <Mail className="mt-0.5 h-4 w-4 text-[var(--accent)]" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">
+                          Why is navigation missing?
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-[var(--muted-strong)]">
+                          You are on the installer admin session. Mail / compose
+                          need a real IMAP mailbox password for{" "}
+                          <strong>{email}</strong>. Connect it below (or under
+                          Admin account), then use <strong>New Message</strong>{" "}
+                          in Mail.
+                        </p>
+                        <form
+                          onSubmit={connectMailbox}
+                          className="mt-4 flex max-w-md flex-col gap-2 sm:flex-row"
+                        >
+                          <input
+                            className="field-input flex-1"
+                            type="password"
+                            placeholder="cPanel mailbox password"
+                            value={mailboxPassword}
+                            onChange={(e) => setMailboxPassword(e.target.value)}
+                            required
+                          />
+                          <button
+                            type="submit"
+                            className="btn-primary sm:w-fit"
+                            disabled={mailboxBusy || !mailboxPassword}
+                          >
+                            {mailboxBusy ? "Connecting…" : "Connect & open Mail"}
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex items-start gap-3">

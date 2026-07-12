@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +54,10 @@ export function WebmailShell({
   const { theme, toggle } = useTheme();
   const [isAdmin, setIsAdmin] = useState(isAdminProp);
   const [hasMailbox, setHasMailbox] = useState(true);
+  const [isAppAdmin, setIsAppAdmin] = useState(false);
+  const [mailboxPassword, setMailboxPassword] = useState("");
+  const [connectBusy, setConnectBusy] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [licenseActive, setLicenseActive] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState<string | null>(null);
   const [companyUrl, setCompanyUrl] = useState("https://ramerlabs.com");
@@ -65,6 +69,7 @@ export function WebmailShell({
         const data = await res.json();
         if (res.ok) {
           setIsAdmin(Boolean(data.isAdmin) || isAdminProp);
+          setIsAppAdmin(Boolean(data.isAppAdmin));
           setHasMailbox(data.hasMailbox !== false);
         }
       } catch {
@@ -99,6 +104,32 @@ export function WebmailShell({
     router.refresh();
   }
 
+  async function handleConnectMailbox(e: FormEvent) {
+    e.preventDefault();
+    setConnectBusy(true);
+    setConnectError(null);
+    try {
+      const res = await fetch("/api/auth/connect-mailbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: mailboxPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setConnectError(data.error || "Could not connect mailbox");
+        return;
+      }
+      setHasMailbox(true);
+      setMailboxPassword("");
+      router.push("/mail");
+      router.refresh();
+    } catch {
+      setConnectError("Network error connecting mailbox");
+    } finally {
+      setConnectBusy(false);
+    }
+  }
+
   const featuresLocked = licenseActive !== true && active !== "admin";
 
   const allLinks: {
@@ -123,14 +154,12 @@ export function WebmailShell({
       label: "Trading Journal",
       icon: CandlestickChart,
     },
-    { key: "expenses", href: "/expenses", label: "Expenses", icon: Wallet },
+    { key: "expenses", href: "/expenses", label: "Expense Tracker", icon: Wallet },
     { key: "settings", href: "/settings", label: "Settings", icon: Settings },
   ];
 
-  // Installer-only (no IMAP) — Admin console only
-  const links = hasMailbox
-    ? [...allLinks]
-    : [];
+  // Installer-only (no IMAP) — Admin console only until mailbox is connected
+  const links = hasMailbox ? [...allLinks] : [];
 
   if (isAdmin) {
     links.push({
@@ -201,6 +230,42 @@ export function WebmailShell({
             );
           })}
         </nav>
+
+        {!hasMailbox && isAppAdmin && (
+          <div className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+            <p className="text-xs font-medium text-[var(--foreground)]">
+              Connect mailbox to send mail
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-[var(--muted)]">
+              Installer login is Admin-only. Enter the cPanel password for{" "}
+              <span className="font-medium text-[var(--foreground)]">
+                {email}
+              </span>{" "}
+              to unlock Mail and compose.
+            </p>
+            <form onSubmit={handleConnectMailbox} className="mt-2 space-y-2">
+              <input
+                type="password"
+                className="field-input text-sm"
+                placeholder="Mailbox password"
+                value={mailboxPassword}
+                onChange={(e) => setMailboxPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+              {connectError && (
+                <p className="text-[11px] text-red-600">{connectError}</p>
+              )}
+              <button
+                type="submit"
+                className="btn-primary w-full text-xs"
+                disabled={connectBusy || !mailboxPassword}
+              >
+                {connectBusy ? "Connecting…" : "Connect & open Mail"}
+              </button>
+            </form>
+          </div>
+        )}
 
         {!featuresLocked && sidebarExtra}
 

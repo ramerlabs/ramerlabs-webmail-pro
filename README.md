@@ -46,7 +46,7 @@ Support: [support@ramerlabs.com](mailto:support@ramerlabs.com) · [ramerlabs.com
 - **To-do** — Checklist with High / Medium / Low priority, select + mass delete, and clear completed
 - **Notes** — Private notes with list + editor
 - **Trading Journal** — Log trades with P&L stats
-- **Expenses** — Track spending by category with a currency selector
+- **Expense Tracker** — Categories, subcategories, currency selector, and spending charts
 
 ### Security & admin
 - **Installer admin** — documented in README (`admin@{MAIL_DOMAIN}` on new installs); change password after first login

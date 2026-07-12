@@ -3,11 +3,14 @@ import { licenseGuard } from "@/lib/license-guard";
 import { z } from "zod";
 import {
   addExpenseCategory,
+  addExpenseSubcategory,
   createExpense,
   deleteExpense,
   deleteExpenseCategory,
+  deleteExpenseSubcategory,
   getExpensesData,
   renameExpenseCategory,
+  renameExpenseSubcategory,
   updateExpense,
 } from "@/lib/expenses-store";
 import { requireSession } from "@/lib/session";
@@ -16,6 +19,7 @@ export const runtime = "nodejs";
 
 const createExpenseSchema = z.object({
   categoryId: z.string().min(1),
+  subcategoryId: z.string().nullable().optional(),
   amount: z.number().positive(),
   currency: z.string().max(8).optional(),
   date: z.string().min(1),
@@ -32,6 +36,13 @@ const categorySchema = z.object({
   name: z.string().max(80).optional(),
 });
 
+const subcategorySchema = z.object({
+  action: z.enum(["add", "rename", "delete"]),
+  categoryId: z.string().min(1),
+  id: z.string().optional(),
+  name: z.string().max(80).optional(),
+});
+
 export async function GET() {
   const licenseBlocked = await licenseGuard();
   if (licenseBlocked) return licenseBlocked;
@@ -44,13 +55,19 @@ export async function GET() {
   try {
     const data = await getExpensesData(session.email);
     const totalsByCategory: Record<string, number> = {};
+    const totalsBySubcategory: Record<string, number> = {};
     for (const expense of data.expenses) {
       totalsByCategory[expense.categoryId] =
         (totalsByCategory[expense.categoryId] || 0) + expense.amount;
+      if (expense.subcategoryId) {
+        totalsBySubcategory[expense.subcategoryId] =
+          (totalsBySubcategory[expense.subcategoryId] || 0) + expense.amount;
+      }
     }
     return NextResponse.json({
       ...data,
       totalsByCategory,
+      totalsBySubcategory,
       total: data.expenses.reduce((sum, e) => sum + e.amount, 0),
     });
   } catch (err) {
@@ -126,6 +143,66 @@ export async function POST(request: Request) {
         );
       }
       await deleteExpenseCategory(session.email, parsed.data.id);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body?.type === "subcategory") {
+      const parsed = subcategorySchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: parsed.error.issues[0]?.message || "Invalid subcategory" },
+          { status: 400 },
+        );
+      }
+
+      if (parsed.data.action === "add") {
+        if (!parsed.data.name?.trim()) {
+          return NextResponse.json(
+            { error: "Subcategory name is required" },
+            { status: 400 },
+          );
+        }
+        const subcategory = await addExpenseSubcategory(
+          session.email,
+          parsed.data.categoryId,
+          parsed.data.name,
+        );
+        return NextResponse.json({ ok: true, subcategory });
+      }
+
+      if (parsed.data.action === "rename") {
+        if (!parsed.data.id || !parsed.data.name?.trim()) {
+          return NextResponse.json(
+            { error: "Subcategory id and name are required" },
+            { status: 400 },
+          );
+        }
+        const subcategory = await renameExpenseSubcategory(
+          session.email,
+          parsed.data.categoryId,
+          parsed.data.id,
+          parsed.data.name,
+        );
+        if (!subcategory) {
+          return NextResponse.json(
+            { error: "Subcategory not found" },
+            { status: 404 },
+          );
+        }
+        return NextResponse.json({ ok: true, subcategory });
+      }
+
+      if (!parsed.data.id) {
+        return NextResponse.json(
+          { error: "Subcategory id is required" },
+          { status: 400 },
+        );
+      }
+      await deleteExpenseSubcategory(
+        session.email,
+        parsed.data.categoryId,
+        parsed.data.id,
+      );
       return NextResponse.json({ ok: true });
     }
 

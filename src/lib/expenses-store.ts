@@ -4,15 +4,23 @@ import path from "path";
 import { Redis } from "@upstash/redis";
 import { normalizeEmail } from "@/lib/auth-crypto";
 
-export interface ExpenseCategory {
+export interface ExpenseSubcategory {
   id: string;
   name: string;
   createdAt: string;
 }
 
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  createdAt: string;
+  subcategories: ExpenseSubcategory[];
+}
+
 export interface ExpenseItem {
   id: string;
   categoryId: string;
+  subcategoryId: string | null;
   amount: number;
   currency: string;
   date: string;
@@ -41,16 +49,87 @@ function localStorePath(): string {
   return path.join(process.cwd(), ".data", "expenses.json");
 }
 
+function makeSub(name: string, createdAt: string): ExpenseSubcategory {
+  return { id: randomUUID(), name, createdAt };
+}
+
 function defaultCategories(): ExpenseCategory[] {
   const now = new Date().toISOString();
   return [
-    { id: "house", name: "House", createdAt: now },
-    { id: "business", name: "Business", createdAt: now },
+    {
+      id: "house",
+      name: "House",
+      createdAt: now,
+      subcategories: [
+        makeSub("Utilities", now),
+        makeSub("Rent / Mortgage", now),
+        makeSub("Groceries", now),
+      ],
+    },
+    {
+      id: "business",
+      name: "Business",
+      createdAt: now,
+      subcategories: [
+        makeSub("Software", now),
+        makeSub("Marketing", now),
+        makeSub("Operations", now),
+      ],
+    },
   ];
 }
 
 function emptyData(): ExpensesData {
   return { categories: defaultCategories(), expenses: [] };
+}
+
+function normalizeCategory(raw: Partial<ExpenseCategory> & { id: string; name: string }): ExpenseCategory {
+  return {
+    id: raw.id,
+    name: raw.name,
+    createdAt: raw.createdAt || new Date().toISOString(),
+    subcategories: Array.isArray(raw.subcategories)
+      ? raw.subcategories.map((s) => ({
+          id: s.id,
+          name: s.name,
+          createdAt: s.createdAt || new Date().toISOString(),
+        }))
+      : [],
+  };
+}
+
+function normalizeExpense(raw: Partial<ExpenseItem> & {
+  id: string;
+  categoryId: string;
+  amount: number;
+  date: string;
+  description: string;
+}): ExpenseItem {
+  return {
+    id: raw.id,
+    categoryId: raw.categoryId,
+    subcategoryId: raw.subcategoryId || null,
+    amount: Number(raw.amount) || 0,
+    currency: (raw.currency || "USD").toUpperCase(),
+    date: raw.date,
+    description: raw.description || "",
+    createdAt: raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updatedAt || raw.createdAt || new Date().toISOString(),
+  };
+}
+
+function normalizeData(value: Partial<ExpensesData> | null | undefined): ExpensesData {
+  if (!value) return emptyData();
+  const categories =
+    Array.isArray(value.categories) && value.categories.length
+      ? value.categories.map((c) =>
+          normalizeCategory(c as ExpenseCategory),
+        )
+      : defaultCategories();
+  const expenses = Array.isArray(value.expenses)
+    ? value.expenses.map((e) => normalizeExpense(e as ExpenseItem))
+    : [];
+  return { categories, expenses };
 }
 
 async function readLocalStore(): Promise<Record<string, ExpensesData>> {
@@ -74,17 +153,10 @@ async function getData(email: string): Promise<ExpensesData> {
   const redis = getRedis();
   if (redis) {
     const value = await redis.get<ExpensesData>(storeKey(email));
-    if (!value) return emptyData();
-    return {
-      categories:
-        Array.isArray(value.categories) && value.categories.length
-          ? value.categories
-          : defaultCategories(),
-      expenses: Array.isArray(value.expenses) ? value.expenses : [],
-    };
+    return normalizeData(value);
   }
   const store = await readLocalStore();
-  return store[normalizeEmail(email)] || emptyData();
+  return normalizeData(store[normalizeEmail(email)]);
 }
 
 async function saveData(
@@ -111,9 +183,14 @@ async function saveData(
 export async function getExpensesData(email: string): Promise<ExpensesData> {
   const data = await getData(email);
   return {
-    categories: [...data.categories].sort((a, b) =>
-      a.name.localeCompare(b.name),
-    ),
+    categories: [...data.categories]
+      .map((c) => ({
+        ...c,
+        subcategories: [...c.subcategories].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     expenses: [...data.expenses].sort((a, b) => b.date.localeCompare(a.date)),
   };
 }
@@ -134,6 +211,7 @@ export async function addExpenseCategory(
     id: randomUUID(),
     name: trimmed,
     createdAt: new Date().toISOString(),
+    subcategories: [],
   };
   data.categories.push(category);
   await saveData(email, data);
@@ -169,7 +247,71 @@ export async function deleteExpenseCategory(
   const fallback = remaining[0].id;
   data.categories = remaining;
   data.expenses = data.expenses.map((e) =>
-    e.categoryId === id ? { ...e, categoryId: fallback } : e,
+    e.categoryId === id
+      ? { ...e, categoryId: fallback, subcategoryId: null }
+      : e,
+  );
+  await saveData(email, data);
+  return true;
+}
+
+export async function addExpenseSubcategory(
+  email: string,
+  categoryId: string,
+  name: string,
+): Promise<ExpenseSubcategory> {
+  const data = await getData(email);
+  const cat = data.categories.find((c) => c.id === categoryId);
+  if (!cat) throw new Error("Unknown category");
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Subcategory name is required");
+  if (
+    cat.subcategories.some(
+      (s) => s.name.toLowerCase() === trimmed.toLowerCase(),
+    )
+  ) {
+    throw new Error("That subcategory already exists");
+  }
+  const sub: ExpenseSubcategory = {
+    id: randomUUID(),
+    name: trimmed,
+    createdAt: new Date().toISOString(),
+  };
+  cat.subcategories.push(sub);
+  await saveData(email, data);
+  return sub;
+}
+
+export async function renameExpenseSubcategory(
+  email: string,
+  categoryId: string,
+  id: string,
+  name: string,
+): Promise<ExpenseSubcategory | null> {
+  const data = await getData(email);
+  const cat = data.categories.find((c) => c.id === categoryId);
+  if (!cat) return null;
+  const idx = cat.subcategories.findIndex((s) => s.id === id);
+  if (idx < 0) return null;
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Subcategory name is required");
+  cat.subcategories[idx] = { ...cat.subcategories[idx], name: trimmed };
+  await saveData(email, data);
+  return cat.subcategories[idx];
+}
+
+export async function deleteExpenseSubcategory(
+  email: string,
+  categoryId: string,
+  id: string,
+): Promise<boolean> {
+  const data = await getData(email);
+  const cat = data.categories.find((c) => c.id === categoryId);
+  if (!cat) return false;
+  if (!cat.subcategories.some((s) => s.id === id)) return false;
+  cat.subcategories = cat.subcategories.filter((s) => s.id !== id);
+  data.expenses = data.expenses.map((e) =>
+    e.subcategoryId === id ? { ...e, subcategoryId: null } : e,
   );
   await saveData(email, data);
   return true;
@@ -179,6 +321,7 @@ export async function createExpense(
   email: string,
   input: {
     categoryId: string;
+    subcategoryId?: string | null;
     amount: number;
     currency?: string;
     date: string;
@@ -186,13 +329,19 @@ export async function createExpense(
   },
 ): Promise<ExpenseItem> {
   const data = await getData(email);
-  if (!data.categories.some((c) => c.id === input.categoryId)) {
-    throw new Error("Unknown category");
+  const cat = data.categories.find((c) => c.id === input.categoryId);
+  if (!cat) throw new Error("Unknown category");
+
+  let subcategoryId: string | null = input.subcategoryId || null;
+  if (subcategoryId && !cat.subcategories.some((s) => s.id === subcategoryId)) {
+    throw new Error("Unknown subcategory");
   }
+
   const now = new Date().toISOString();
   const item: ExpenseItem = {
     id: randomUUID(),
     categoryId: input.categoryId,
+    subcategoryId,
     amount: Number(input.amount),
     currency: (input.currency || "USD").trim().toUpperCase() || "USD",
     date: input.date,
@@ -209,24 +358,42 @@ export async function updateExpense(
   email: string,
   id: string,
   patch: Partial<
-    Pick<ExpenseItem, "categoryId" | "amount" | "currency" | "date" | "description">
+    Pick<
+      ExpenseItem,
+      | "categoryId"
+      | "subcategoryId"
+      | "amount"
+      | "currency"
+      | "date"
+      | "description"
+    >
   >,
 ): Promise<ExpenseItem | null> {
   const data = await getData(email);
   const idx = data.expenses.findIndex((e) => e.id === id);
   if (idx < 0) return null;
 
-  if (
-    patch.categoryId &&
-    !data.categories.some((c) => c.id === patch.categoryId)
-  ) {
-    throw new Error("Unknown category");
+  const current = data.expenses[idx];
+  const nextCategoryId = patch.categoryId || current.categoryId;
+  const cat = data.categories.find((c) => c.id === nextCategoryId);
+  if (!cat) throw new Error("Unknown category");
+
+  let nextSubId =
+    patch.subcategoryId !== undefined
+      ? patch.subcategoryId
+      : current.subcategoryId;
+  if (patch.categoryId && patch.categoryId !== current.categoryId) {
+    nextSubId = patch.subcategoryId !== undefined ? patch.subcategoryId : null;
+  }
+  if (nextSubId && !cat.subcategories.some((s) => s.id === nextSubId)) {
+    throw new Error("Unknown subcategory");
   }
 
-  const current = data.expenses[idx];
   const next: ExpenseItem = {
     ...current,
     ...patch,
+    categoryId: nextCategoryId,
+    subcategoryId: nextSubId,
     currency:
       patch.currency !== undefined
         ? patch.currency.trim().toUpperCase() || current.currency
