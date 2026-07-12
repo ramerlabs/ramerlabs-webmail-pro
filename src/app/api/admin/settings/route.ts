@@ -16,6 +16,7 @@ const patchSchema = z
     adsPlacementId: z.string().optional(),
     adsCustomHtml: z.string().optional(),
     signupEnabled: z.boolean().optional(),
+    landingEnabled: z.boolean().optional(),
     blockedEmails: z.array(z.string()).optional(),
     blockEmail: z.string().optional(),
     unblockEmail: z.string().optional(),
@@ -26,12 +27,13 @@ const patchSchema = z
       v.adsPlacementId !== undefined ||
       v.adsCustomHtml !== undefined ||
       v.signupEnabled !== undefined ||
+      v.landingEnabled !== undefined ||
       v.blockedEmails !== undefined ||
       v.blockEmail !== undefined ||
       v.unblockEmail !== undefined,
     {
       message:
-        "Provide adsEnabled, adsPlacementId, adsCustomHtml, signupEnabled, blockedEmails, blockEmail, and/or unblockEmail",
+        "Provide adsEnabled, adsPlacementId, adsCustomHtml, signupEnabled, landingEnabled, blockedEmails, blockEmail, and/or unblockEmail",
     },
   );
 
@@ -97,6 +99,7 @@ export async function PUT(request: Request) {
       adsPlacementId: parsed.data.adsPlacementId,
       adsCustomHtml: parsed.data.adsCustomHtml,
       signupEnabled: parsed.data.signupEnabled,
+      landingEnabled: parsed.data.landingEnabled,
       blockedEmails,
     });
 

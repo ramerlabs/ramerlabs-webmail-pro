@@ -11,6 +11,8 @@ export interface AppAdminSettings {
   /** Optional raw HTML/script embed. When set, used instead of Lacidaweb placement. */
   adsCustomHtml: string;
   signupEnabled: boolean;
+  /** When false, `/` redirects guests to `/login` instead of the marketing page. */
+  landingEnabled: boolean;
   /** Lowercased full mailbox addresses blocked from login/signup */
   blockedEmails: string[];
   updatedAt: string;
@@ -26,6 +28,7 @@ const defaults: AppAdminSettings = {
   adsPlacementId: DEFAULT_PLACEMENT,
   adsCustomHtml: "",
   signupEnabled: true,
+  landingEnabled: true,
   blockedEmails: [],
   updatedAt: new Date(0).toISOString(),
 };
@@ -84,6 +87,7 @@ function mergeSettings(
     ...defaults,
     ...value,
     signupEnabled: value.signupEnabled !== false,
+    landingEnabled: value.landingEnabled !== false,
     adsEnabled: value.adsEnabled !== false,
     adsPlacementId:
       typeof value.adsPlacementId === "string" && value.adsPlacementId.trim()
@@ -144,6 +148,7 @@ export async function saveAdminSettings(
       | "adsPlacementId"
       | "adsCustomHtml"
       | "signupEnabled"
+      | "landingEnabled"
       | "blockedEmails"
     >
   >,
@@ -164,6 +169,10 @@ export async function saveAdminSettings(
       patch.signupEnabled !== undefined
         ? patch.signupEnabled
         : current.signupEnabled,
+    landingEnabled:
+      patch.landingEnabled !== undefined
+        ? patch.landingEnabled
+        : current.landingEnabled,
     blockedEmails:
       patch.blockedEmails !== undefined
         ? normalizeBlockedList(patch.blockedEmails)

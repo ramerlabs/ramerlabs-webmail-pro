@@ -81,6 +81,7 @@ export function AdminDashboard({
   const [adsPlacementId, setAdsPlacementId] = useState("");
   const [adsCustomHtml, setAdsCustomHtml] = useState("");
   const [signupEnabled, setSignupEnabled] = useState(true);
+  const [landingEnabled, setLandingEnabled] = useState(true);
   const [blockedEmails, setBlockedEmails] = useState<string[]>([]);
   const [blockInput, setBlockInput] = useState("");
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -130,6 +131,7 @@ export function AdminDashboard({
         setAdsPlacementId(settingsData.settings?.adsPlacementId || "");
         setAdsCustomHtml(settingsData.settings?.adsCustomHtml || "");
         setSignupEnabled(settingsData.settings?.signupEnabled !== false);
+        setLandingEnabled(settingsData.settings?.landingEnabled !== false);
         setBlockedEmails(
           Array.isArray(settingsData.settings?.blockedEmails)
             ? settingsData.settings.blockedEmails
@@ -179,6 +181,7 @@ export function AdminDashboard({
       setAdsPlacementId(data.settings?.adsPlacementId || "");
       setAdsCustomHtml(data.settings?.adsCustomHtml || "");
       setSignupEnabled(data.settings?.signupEnabled !== false);
+      setLandingEnabled(data.settings?.landingEnabled !== false);
       setBlockedEmails(
         Array.isArray(data.settings?.blockedEmails)
           ? data.settings.blockedEmails
@@ -834,6 +837,54 @@ export function AdminDashboard({
                           className={cn(
                             "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform",
                             signupEnabled ? "left-5" : "left-0.5",
+                          )}
+                        />
+                      </button>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <LayoutDashboard className="mt-0.5 h-4 w-4 text-[var(--accent)]" />
+                      <div>
+                        <p className="text-sm font-medium">Landing page</p>
+                        <p className="mt-1 max-w-md text-xs text-[var(--muted)]">
+                          When enabled, guests see the marketing page at{" "}
+                          <code className="text-[11px]">/</code>. When disabled,
+                          they go straight to login.
+                        </p>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-3 text-sm">
+                      <span className="text-[var(--muted-strong)]">
+                        {landingEnabled ? "Enabled" : "Disabled"}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={landingEnabled}
+                        disabled={settingsSaving}
+                        onClick={() =>
+                          void saveSettings(
+                            { landingEnabled: !landingEnabled },
+                            landingEnabled
+                              ? "Landing page disabled. Guests go to login."
+                              : "Landing page enabled.",
+                          )
+                        }
+                        className={cn(
+                          "relative h-7 w-12 rounded-full transition-colors",
+                          landingEnabled
+                            ? "bg-[var(--accent)]"
+                            : "bg-[var(--border)]",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform",
+                            landingEnabled ? "left-5" : "left-0.5",
                           )}
                         />
                       </button>

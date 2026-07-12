@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LandingPage } from "@/components/landing/landing-page";
+import { getAdminSettings } from "@/lib/admin-settings";
 import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -17,6 +18,15 @@ export default async function HomePage() {
     }
   } catch {
     /* first boot without session secret */
+  }
+
+  try {
+    const settings = await getAdminSettings();
+    if (settings.landingEnabled === false) {
+      redirect("/login");
+    }
+  } catch {
+    /* show landing if settings unavailable */
   }
 
   return <LandingPage />;
